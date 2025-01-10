@@ -130,10 +130,11 @@ def draw_sidebar(surface, selected_entity):
 
         # Sensors Information
         '''
+        sensors = selected_entity.get_sensors(Predator)
         sensor_label = font.render("SENSORS", True, (0, 0, 0))
         surface.blit(sensor_label, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, 270))
-        for i, (distance, target) in enumerate(selected_entity.sensors):
-            sensor_info = font.render(f"{i + 1}: {distance} ({target})", True, (0, 0, 0))
+        for i, (start, end, distance, target_type) in sensors:
+            sensor_info = font.render(f"{i + 1}: {distance} ({target_type})", True, (0, 0, 0))
             surface.blit(sensor_info, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, 300 + i * 20))
         '''
 
@@ -276,13 +277,40 @@ def main():
         # Draw the main screen
         screen.fill(BACKGROUND_COLOR)
 
+        # Draw sidebar
+        draw_sidebar(screen, selected_entity)
+
         # Draw entities and sensors
         for prey in preys:
             #prey.update_sensors(grid, frame_count)  # Update sensors for prey
             color = SELECT_ENTITY_COLOR if prey == selected_entity else prey.color
             pygame.draw.circle(screen, color, (prey.x, prey.y), prey.size)
             if prey == selected_entity:
+                font = pygame.font.Font(None, 24)
+                sensor_label = font.render("SENSORS", True, (0, 0, 0))
+                screen.blit(sensor_label, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, 270))
                 #draw_sensors(screen, prey)
+                sensors = selected_entity.get_sensors(preys, predators)
+                for i, sensor in enumerate(sensors):
+                    start = sensor["start"]
+                    end = sensor["end"]
+                    distance = round(sensor["distance"], 2)
+                    target_type = sensor["target_type"]
+
+                    # Define a cor do sensor baseado no tipo do alvo
+                    if target_type == "prey":
+                        color = (0, 255, 0)  # Verde para presas
+                    elif target_type == "predator":
+                        color = (255, 0, 0)  # Vermelho para predadores
+                    else:
+                        color = (200, 200, 200)  # Cinza para nenhum alvo
+
+                    sensor_info = font.render(f"{i + 1}: {distance} ({target_type})", True, (0, 0, 0))
+                    screen.blit(sensor_info, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, 300 + i * 20))
+                    #screen.blit(sensor_info, (SCREEN_HEIGHT - BOTTOMBAR_HEIGHT + 20, 300 + i * 20))
+
+                    # Desenha o sensor com a cor e comprimento corretos
+                    pygame.draw.line(screen, color, sensor["start"], sensor["end"], 2)
                 continue
 
         for predator in predators:
@@ -290,11 +318,35 @@ def main():
             color = SELECT_ENTITY_COLOR if predator == selected_entity else predator.color
             pygame.draw.circle(screen, color, (predator.x, predator.y), predator.size)
             if predator == selected_entity:
-                #draw_sensors(screen, predator)
+                font = pygame.font.Font(None, 24)
+                sensor_label = font.render("SENSORS", True, (0, 0, 0))
+                screen.blit(sensor_label, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, 270))
+                #draw_sensors(screen, prey)
+                sensors = selected_entity.get_sensors(preys, predators)
+                for i, sensor in enumerate(sensors):
+                    start = sensor["start"]
+                    end = sensor["end"]
+                    distance = round(sensor["distance"], 2)
+                    target_type = sensor["target_type"]
+
+                    # Define a cor do sensor baseado no tipo do alvo
+                    if target_type == "prey":
+                        color = (0, 255, 0)  # Verde para presas
+                    elif target_type == "predator":
+                        color = (255, 0, 0)  # Vermelho para predadores
+                    else:
+                        color = (200, 200, 200)  # Cinza para nenhum alvo
+
+                    sensor_info = font.render(f"{i + 1}: {distance} ({target_type})", True, (0, 0, 0))
+                    screen.blit(sensor_info, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, 300 + i * 20))
+                    #screen.blit(sensor_info, (SCREEN_HEIGHT - BOTTOMBAR_HEIGHT + 20, 300 + i * 20))
+
+                    # Desenha o sensor com a cor e comprimento corretos
+                    pygame.draw.line(screen, color, sensor["start"], sensor["end"], 2)              
                 continue
 
         # Draw sidebar
-        draw_sidebar(screen, selected_entity)
+        #draw_sidebar(screen, selected_entity)
 
         # Draw bottom bar
         draw_bottom_bar(screen)
@@ -307,6 +359,7 @@ def main():
                 SCREEN_WIDTH - 400,  # X offset (ao lado do gráfico)
                 SCREEN_HEIGHT - BOTTOMBAR_HEIGHT + 20,  # Y offset
             )
+
 
         # Update the display
         pygame.display.flip()

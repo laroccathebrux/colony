@@ -1,6 +1,6 @@
 import pygame
 import random
-from math import cos, sin, radians
+from math import cos, sin, radians, sqrt, degrees, atan2
 from constants import *
 from neural_network import NeuralNetwork
 
@@ -58,6 +58,7 @@ class Prey:
         self.sensors = [0, 0, 0, 0]  # Sensor distances for [front, back, left, right]
         self.neural_network = NeuralNetwork()  # Neural network instance
         self.is_stationary = 0  # Whether the prey is stationary
+        self.direction = random.uniform(0, 360)  # In degrees
 
     def draw(self, surface):
         pygame.draw.circle(surface, self.color, (self.x, self.y), self.size)
@@ -72,6 +73,8 @@ class Prey:
             # Constrain angular velocity to reduce rotation
             max_angular_velocity = 0.1  # Adjust this value to allow slight rotations
             angular_velocity = max(-max_angular_velocity, min(max_angular_velocity, angular_velocity - 0.5)) * 2 * 3.14159
+            self.direction += angular_velocity
+            self.direction %= 360
 
             # Convert speed and angular velocity into movement
             dx = int(speed * cos(angular_velocity * 2 * 3.14159))
@@ -81,8 +84,11 @@ class Prey:
             self.is_stationary = (dx == 0 and dy == 0)
 
             old_x, old_y = self.x, self.y
-            self.x += dx
-            self.y += dy
+            #self.x += dx
+            #self.y += dy
+            # Atualiza a posição
+            self.x += speed * cos(radians(self.direction))
+            self.y += speed * sin(radians(self.direction))
 
             # Wrap around the screen edges for infinite world effect
             if self.x + self.size < 0:  # Exiting left
@@ -113,13 +119,74 @@ class Prey:
 
     def update_split(self, preys):
         if self.split_progress < 100:
-            self.split_progress += PREY_SPLIT_RATE
+            
+            self.split_progress += random.uniform(0, PREY_SPLIT_RATE)
+
+            
         if self.split_progress >= 100 and self.energy >= 30:
             self.split_progress = 0
             new_prey = Prey(self.x + random.randint(-10, 10), self.y + random.randint(-10, 10))
             new_prey.neural_network = NeuralNetwork()  # Create new neural network for offspring
             new_prey.neural_network.mutate(MUTATION_RATE)  # Apply mutation with a 10% rate
             preys.append(new_prey)
+
+    def get_sensors(self, preys, predators):
+        """Retorna os sensores (raios) da presa."""
+        sensors = []
+        num_sensors = 6  # Número de raios
+        vision_distance = 0.8 * min(SCREEN_WIDTH, SCREEN_HEIGHT)  # Distância máxima do sensor
+        angle_step = 360 / num_sensors  # Ângulo entre sensores
+
+        for i in range(num_sensors):
+            # Calcula o ângulo de cada sensor em 360 graus
+            angle = radians(i * angle_step + self.direction)
+            closest_distance = vision_distance  # Inicialmente o sensor tem alcance máximo
+            target_type = None  # Identifica o tipo do alvo (predador ou presa)
+
+            # Verifica colisão com predadores
+            for predator in predators:
+                dx = predator.x - self.x
+                dy = predator.y - self.y
+                distance = sqrt(dx**2 + dy**2)  # Distância até o predador
+                predator_angle = degrees(atan2(dy, dx))
+                delta_angle = abs(predator_angle - degrees(angle)) % 360
+                if delta_angle > 180:  # Normaliza para o intervalo [0, 180]
+                    delta_angle = 360 - delta_angle
+                if distance < closest_distance and delta_angle <= (angle_step / 2):  # Apenas predadores no campo de visão
+                    closest_distance = distance
+                    target_type = "predator"
+
+            # Verifica colisão com outras presas
+            for prey in preys:
+                if prey == self:  # Ignora a própria presa
+                    continue
+                dx = prey.x - self.x
+                dy = prey.y - self.y
+                distance = sqrt(dx**2 + dy**2)  # Distância até a outra presa
+                prey_angle = degrees(atan2(dy, dx))
+                delta_angle = abs(prey_angle - degrees(angle)) % 360
+                if delta_angle > 180:  # Normaliza para o intervalo [0, 180]
+                    delta_angle = 360 - delta_angle
+                if distance < closest_distance and delta_angle <= (angle_step / 2):  # Apenas presas no campo de visão
+                    closest_distance = distance
+                    target_type = "prey"
+
+            # Calcula o ponto final do sensor baseado na distância mais próxima
+            end_x = self.x + cos(angle) * closest_distance
+            end_y = self.y + sin(angle) * closest_distance
+
+            # Adiciona o sensor ao resultado
+            sensor = {
+                "start": (self.x, self.y),
+                "end": (end_x, end_y),
+                "distance": closest_distance,
+                "target_type": target_type  # Identifica se foi um predador ou outra presa
+            }
+            sensors.append(sensor)
+            #for i, sensor in enumerate(sensors):
+               # print(f"Sensor {i}: Distance={sensor['distance']:.2f}, Target={sensor['target_type']}")
+
+        return sensors
 
     def update_sensors(self, grid, frame_count):
         """Update sensor distances and targets."""
@@ -193,6 +260,7 @@ class Predator:
         self.digestion = 0  # Digestion timer
         self.sensors = [0, 0, 0, 0]  # Sensor distances for 4 angled directions
         self.neural_network = NeuralNetwork()  # Neural network instance
+        self.direction = random.uniform(0, 360)  # In degrees
 
     def draw(self, surface):
         pygame.draw.circle(surface, self.color, (self.x, self.y), self.size)
@@ -204,14 +272,19 @@ class Predator:
         # Normalize outputs
         speed = speed * 5  # Scale speed to a maximum of 5
         angular_velocity = (angular_velocity - 0.5) * 2 * 3.14159  # Scale to [-pi, pi]
+        self.direction += angular_velocity
+        self.direction %= 360
 
         # Convert speed and angular velocity into movement
         dx = int(speed * cos(angular_velocity * 2 * 3.14159))
         dy = int(speed * sin(angular_velocity * 2 * 3.14159))
 
         old_x, old_y = self.x, self.y
-        self.x += dx
-        self.y += dy
+        #self.x += dx
+        #self.y += dy
+        # Atualiza a posição
+        self.x += speed * cos(radians(self.direction))
+        self.y += speed * sin(radians(self.direction))
 
         # Wrap around the screen edges for infinite world effect
         if self.x + self.size < 0:  # Exiting left
@@ -253,6 +326,71 @@ class Predator:
                         new_predator.neural_network.mutate(MUTATION_RATE)  # Apply mutation with a 10% rate
                         return new_predator
                 return None
+            
+    def get_sensors(self, preys, predators):
+        """Retorna os sensores (raios) do predador, atualizados em tempo de execução."""
+        
+        sensors = []
+        num_sensors = 4  # Número de raios no campo de visão
+        vision_distance = 0.8 * min(SCREEN_WIDTH, SCREEN_HEIGHT)  # Distância máxima do sensor
+        angle_offset = -22.5  # Metade do campo de visão (45 graus dividido por 2)
+
+        # Atualiza a posição inicial dos sensores com base na posição atual da entidade
+        movement_offset = self.size  # Distância para ajustar os sensores à frente da entidade
+        start_x = self.x + cos(radians(self.direction)) * movement_offset
+        start_y = self.y + sin(radians(self.direction)) * movement_offset
+
+        for i in range(num_sensors):
+            # Calcula o ângulo de cada sensor dentro do campo de visão
+            angle = radians(self.direction + angle_offset + i * (45 / num_sensors))
+            closest_distance = vision_distance  # Inicialmente o sensor tem alcance máximo
+            target_type = None  # Identifica o tipo do alvo (presa ou predador)
+
+            # Verifica colisão com presas
+            for prey in preys:
+                dx = prey.x - start_x
+                dy = prey.y - start_y
+                distance = sqrt(dx**2 + dy**2)  # Distância até a presa
+                prey_angle = degrees(atan2(dy, dx))
+                delta_angle = abs(prey_angle - degrees(angle)) % 360
+                if delta_angle > 180:  # Normaliza para o intervalo [0, 180]
+                    delta_angle = 360 - delta_angle
+                if distance < closest_distance and delta_angle <= (45 / 2):  # Apenas presas no campo de visão
+                    closest_distance = distance
+                    target_type = "prey"
+
+            # Verifica colisão com outros predadores
+            for predator in predators:
+                if predator == self:  # Ignora o próprio predador
+                    continue
+                dx = predator.x - start_x
+                dy = predator.y - start_y
+                distance = sqrt(dx**2 + dy**2)  # Distância até o predador
+                predator_angle = degrees(atan2(dy, dx))
+                delta_angle = abs(predator_angle - degrees(angle)) % 360
+                if delta_angle > 180:  # Normaliza para o intervalo [0, 180]
+                    delta_angle = 360 - delta_angle
+                if distance < closest_distance and delta_angle <= (45 / 2):  # Apenas predadores no campo de visão
+                    closest_distance = distance
+                    target_type = "predator"
+
+            # Calcula o ponto final do sensor baseado na distância mais próxima
+            end_x = start_x + cos(angle) * closest_distance
+            end_y = start_y + sin(angle) * closest_distance
+
+            # Adiciona o sensor ao resultado
+            sensor = {
+                "start": (start_x, start_y),  # Posição inicial ajustada
+                "end": (end_x, end_y),
+                "distance": closest_distance,
+                "target_type": target_type  # Identifica se foi uma presa ou predador
+            }
+            sensors.append(sensor)
+
+        return sensors
+
+
+
 
     def update_sensors(self, grid, frame_count):
         """Update sensor distances and targets."""
