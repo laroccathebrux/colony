@@ -242,9 +242,11 @@ def main():
                         selected_entity = entity
                         break
 
+        
         # Update simulation
         for prey in preys[:]:
             #prey.update_sensors(grid, frame_count)
+            prey.sensors = prey.get_sensors(preys, predators)
             old_x, old_y = prey.move()
             if old_x is not None:
                 grid.update_entity(prey, old_x, old_y)
@@ -253,6 +255,7 @@ def main():
 
         for predator in predators[:]:
             #predator.update_sensors(grid, frame_count)
+            predator.sensors = predator.get_sensors(preys, predators)
             old_x, old_y = predator.move()
             if old_x is not None:
                 grid.update_entity(predator, old_x, old_y)

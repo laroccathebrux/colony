@@ -42,6 +42,7 @@ class NeuralNetwork:
 
     def forward(self, input_data):
         """Perform a forward pass through the network."""
+        activation = 0.0
         if len(input_data) != INPUTS:
             raise ValueError(f"Input data must have {INPUTS} elements.")
 

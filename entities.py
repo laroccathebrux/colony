@@ -133,7 +133,7 @@ class Prey:
     def get_sensors(self, preys, predators):
         """Retorna os sensores (raios) da presa."""
         sensors = []
-        num_sensors = 6  # Número de raios
+        num_sensors = 4  # Número de raios
         vision_distance = 0.8 * min(SCREEN_WIDTH, SCREEN_HEIGHT)  # Distância máxima do sensor
         angle_step = 360 / num_sensors  # Ângulo entre sensores
 
@@ -183,56 +183,16 @@ class Prey:
                 "target_type": target_type  # Identifica se foi um predador ou outra presa
             }
             sensors.append(sensor)
-            #for i, sensor in enumerate(sensors):
-               # print(f"Sensor {i}: Distance={sensor['distance']:.2f}, Target={sensor['target_type']}")
 
         return sensors
-
-    def update_sensors(self, grid, frame_count):
-        """Update sensor distances and targets."""
-        if frame_count % 5 != 0:  # Update sensors every 5 frames
-            return
-        
-        directions = [(0, -1), (0, 1), (-1, 0), (1, 0)]  if isinstance(self, Prey) else [
-            (cos(radians(angle)), -sin(radians(angle))) for angle in [0, -45, 45, -90]
-        ] # Front, back, left, right
-
-        self.sensors = []
-
-        for dx, dy in directions:
-            try:
-                distance, target = self._cast_ray(dx, dy, grid)
-                self.sensors.append((distance, target))
-            except Exception as e:
-                # Handle unexpected issues gracefully
-                self.sensors.append((50, None))  # Default to max distance, no target
-
-    def _cast_ray(self, dx, dy, grid):
-        """Optimized ray casting to reduce processing time."""
-        max_distance = 50 if isinstance(self, Prey) else 150  # Short for prey, long for predators
-        x, y = self.x, self.y
-
-        for d in range(1, max_distance):
-            x += dx
-            y += dy
-
-            # Check for walls
-            if x < 0 or x >= SCREEN_WIDTH or y < 0 or y >= SCREEN_HEIGHT - BOTTOMBAR_HEIGHT:
-                return d, 'WALL'
-
-            # Check for nearby entities in relevant grid cells
-            for entity in grid.get_nearby_entities(x, y):
-                if entity is not self and abs(entity.x - x) <= self.size and abs(entity.y - y) <= self.size:
-                    return d, 'PREY' if isinstance(entity, Prey) else 'PREDATOR'      
-                                                  
-        return max_distance, None
 
     def _prepare_inputs(self):
         """Prepare inputs for the neural network."""
         inputs = []
         for sensor in self.sensors:
-            if isinstance(sensor, tuple) and len(sensor) == 2:
-                distance, target = sensor
+            #print(sensor["distance"])
+            if isinstance(sensor, tuple) and len(sensor) == 4:
+                distance, target = sensor["distance"], sensor["target_type"]
                 inputs.append(distance / 50.0)  # Normalize distance to [0, 1]
                 inputs.append(1 if target == 'PREY' else 0)  # Binary encoding for targets
             else:
@@ -326,6 +286,42 @@ class Predator:
                         new_predator.neural_network.mutate(MUTATION_RATE)  # Apply mutation with a 10% rate
                         return new_predator
                 return None
+
+    def process_single_sensor(args):
+        """Processa um único sensor com base nos argumentos fornecidos."""
+        angle, self_position, vision_distance, preys, predators = args
+        closest_distance = vision_distance
+        target_type = None
+
+        # Verifica colisão com presas
+        for prey in preys:
+            dx = prey.x - self_position[0]
+            dy = prey.y - self_position[1]
+            distance = (dx**2 + dy**2) ** 0.5  # Calcula a distância
+            if distance < closest_distance:
+                closest_distance = distance
+                target_type = "prey"
+
+        # Verifica colisão com predadores
+        for predator in predators:
+            dx = predator.x - self_position[0]
+            dy = predator.y - self_position[1]
+            distance = (dx**2 + dy**2) ** 0.5  # Calcula a distância
+            if distance < closest_distance:
+                closest_distance = distance
+                target_type = "predator"
+
+        # Calcula o ponto final do sensor
+        end_x = self_position[0] + cos(angle) * closest_distance
+        end_y = self_position[1] + sin(angle) * closest_distance
+
+        return {
+            "start": (self_position[0], self_position[1]),
+            "end": (end_x, end_y),
+            "distance": closest_distance,
+            "target_type": target_type
+        }
+
             
     def get_sensors(self, preys, predators):
         """Retorna os sensores (raios) do predador, atualizados em tempo de execução."""
@@ -386,57 +382,15 @@ class Predator:
                 "target_type": target_type  # Identifica se foi uma presa ou predador
             }
             sensors.append(sensor)
-
+        
         return sensors
-
-
-
-
-    def update_sensors(self, grid, frame_count):
-        """Update sensor distances and targets."""
-        if frame_count % 5 != 0:  # Update sensors every 5 frames
-            return
-
-        directions = [(0, -1), (0, 1), (-1, 0), (1, 0)] if isinstance(self, Prey) else [
-            (cos(radians(angle)), -sin(radians(angle))) for angle in [0, -45, 45, -90]
-        ]
-        self.sensors = []
-
-        for dx, dy in directions:
-            try:
-                distance, target = self._cast_ray(dx, dy, grid)
-                self.sensors.append((distance, target))
-            except Exception as e:
-                # Handle unexpected issues gracefully
-                self.sensors.append((150, None))  # Default to max distance, no target
-
-    def _cast_ray(self, dx, dy, grid):
-        """Cast a ray in the given direction and return distance and target type."""
-        max_distance = 150 if isinstance(self, Prey) else 50 # Long range
-
-        x, y = self.x, self.y
-
-        for d in range(1, max_distance):
-            x += dx
-            y += dy
-
-            # Check for walls
-            if x < 0 or x >= SCREEN_WIDTH or y < 0 or y >= SCREEN_HEIGHT - BOTTOMBAR_HEIGHT:
-                return d, 'WALL'
-            
-            # Check for nearby entities in relevant grid cells
-            for entity in grid.get_nearby_entities(x, y):
-                if entity is not self and abs(entity.x - x) <= self.size and abs(entity.y - y) <= self.size:
-                    return d, 'PREY' if isinstance(entity, Prey) else 'PREDATOR'
-                
-        return max_distance, None
-
+    
     def _prepare_inputs(self):
         """Prepare inputs for the neural network."""
         inputs = []
         for sensor in self.sensors:
-            if isinstance(sensor, tuple) and len(sensor) == 2:
-                distance, target = sensor
+            if isinstance(sensor, tuple) and len(sensor) == 4:
+                distance, target = sensor["distance"], sensor["target_type"]
                 inputs.append(distance / 50.0)  # Normalize distance to [0, 1]
                 inputs.append(1 if target == 'PREY' else 0)  # Binary encoding for targets
             else:
