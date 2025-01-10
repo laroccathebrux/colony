@@ -137,6 +137,10 @@ class Prey:
         vision_distance = 0.8 * min(SCREEN_WIDTH, SCREEN_HEIGHT)  # Distância máxima do sensor
         angle_step = 360 / num_sensors  # Ângulo entre sensores
 
+        # Filtrar apenas entidades próximas
+        filtered_preys = [prey for prey in preys if abs(prey.x - self.x) <= vision_distance and abs(prey.y - self.y) <= vision_distance]
+        filtered_predators = [predator for predator in predators if abs(predator.x - self.x) <= vision_distance and abs(predator.y - self.y) <= vision_distance]
+
         for i in range(num_sensors):
             # Calcula o ângulo de cada sensor em 360 graus
             angle = radians(i * angle_step + self.direction)
@@ -144,7 +148,7 @@ class Prey:
             target_type = None  # Identifica o tipo do alvo (predador ou presa)
 
             # Verifica colisão com predadores
-            for predator in predators:
+            for predator in filtered_predators:
                 dx = predator.x - self.x
                 dy = predator.y - self.y
                 distance = sqrt(dx**2 + dy**2)  # Distância até o predador
@@ -157,7 +161,7 @@ class Prey:
                     target_type = "predator"
 
             # Verifica colisão com outras presas
-            for prey in preys:
+            for prey in filtered_preys:
                 if prey == self:  # Ignora a própria presa
                     continue
                 dx = prey.x - self.x
@@ -331,6 +335,11 @@ class Predator:
         vision_distance = 0.8 * min(SCREEN_WIDTH, SCREEN_HEIGHT)  # Distância máxima do sensor
         angle_offset = -22.5  # Metade do campo de visão (45 graus dividido por 2)
 
+        # Filtrar apenas entidades próximas
+        filtered_preys = [prey for prey in preys if abs(prey.x - self.x) <= vision_distance and abs(prey.y - self.y) <= vision_distance]
+        filtered_predators = [predator for predator in predators if abs(predator.x - self.x) <= vision_distance and abs(predator.y - self.y) <= vision_distance]
+
+
         # Atualiza a posição inicial dos sensores com base na posição atual da entidade
         movement_offset = self.size  # Distância para ajustar os sensores à frente da entidade
         start_x = self.x + cos(radians(self.direction)) * movement_offset
@@ -343,7 +352,7 @@ class Predator:
             target_type = None  # Identifica o tipo do alvo (presa ou predador)
 
             # Verifica colisão com presas
-            for prey in preys:
+            for prey in filtered_preys:
                 dx = prey.x - start_x
                 dy = prey.y - start_y
                 distance = sqrt(dx**2 + dy**2)  # Distância até a presa
@@ -356,7 +365,7 @@ class Predator:
                     target_type = "prey"
 
             # Verifica colisão com outros predadores
-            for predator in predators:
+            for predator in filtered_predators:
                 if predator == self:  # Ignora o próprio predador
                     continue
                 dx = predator.x - start_x
