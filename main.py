@@ -188,8 +188,8 @@ def draw_bottom_bar(surface):
     pygame.draw.rect(surface, BOTTOMBAR_COLOR, (0, SCREEN_HEIGHT - BOTTOMBAR_HEIGHT, SCREEN_WIDTH, BOTTOMBAR_HEIGHT))
 
     ax.clear()
-    ax.plot(range(len(time_data)), list(prey_data), label="Prey")
-    ax.plot(range(len(time_data)), list(predator_data), label="Predators")
+    ax.plot(range(len(time_data)), list(prey_data), label="Prey", color='green')
+    ax.plot(range(len(time_data)), list(predator_data), label="Predators", color='red')
     ax.set_title("Population Over Time")
     ax.set_xlabel("Time")
     ax.set_ylabel("Count")

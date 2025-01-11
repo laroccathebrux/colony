@@ -146,9 +146,9 @@ class Prey:
             new_prey = Prey(self.x + random.randint(-10, 10), self.y + random.randint(-10, 10))
             new_prey.generation = self.generation + 1
             new_prey.neural_network = NeuralNetwork()  # Create new neural network for offspring
-            new_prey.reward = new_prey.neural_network.calculate_reward(
-                energy_used=self.energy
-            )
+            #new_prey.reward = new_prey.neural_network.calculate_reward(
+            #    energy_used=self.energy
+            #)
             mutation_rate = max(0.01, MUTATION_RATE - new_prey.reward / 100)
             new_prey.neural_network.mutate(mutation_rate)
             preys.append(new_prey)
