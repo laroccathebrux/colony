@@ -309,7 +309,7 @@ def main():
             if old_x is not None:
                 grid.update_entity(predator, old_x, old_y)
             predator.update_energy()
-            new_predator = predator.eat_prey(preys, grid)
+            new_predator = predator.eat_prey(preys, grid, predators)
             if new_predator:
                 predators.append(new_predator)
                 grid.add_entity(new_predator)

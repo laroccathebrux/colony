@@ -49,7 +49,7 @@ class SpatialGrid:
 
 class Prey:
     """Class representing a prey entity."""
-    def __init__(self, x, y, energy=None):
+    def __init__(self, x, y, energy=None, neural_network=None):
         self.x = x
         self.y = y
         self.color = PREY_COLOR
@@ -58,7 +58,7 @@ class Prey:
         self.active = True  # Whether the prey is moving
         self.split_progress = 0  # Progress towards splitting
         self.sensors = [0, 0, 0, 0]  # Sensor distances for [front, back, left, right]
-        self.neural_network = NeuralNetwork()  # Neural network instance
+        self.neural_network = neural_network if neural_network else NeuralNetwork()  # Nova ou existente
         self.is_stationary = 0  # Whether the prey is stationary
         self.direction = random.uniform(0, 360)  # In degrees
         self.reward = 0.0 
@@ -143,12 +143,17 @@ class Prey:
 
         if self.split_progress >= 100 and self.energy >= 30:
             self.split_progress = 0
-            new_prey = Prey(self.x + random.randint(-10, 10), self.y + random.randint(-10, 10))
+            # Cruzamento genético entre dois indivíduos
+            parent1 = random.choice(preys)
+            parent2 = random.choice(preys)
+            child = parent1.neural_network.crossover(parent2.neural_network)
+            # Escolher posição inicial para o novo predador (pode ser aleatória ou baseada nos pais)
+            child_x = (parent1.x + parent2.x) // 2  # Média das posições x dos pais
+            child_y = (parent1.y + parent2.y) // 2  # Média das posições y dos pais
+            # Criação de um novo predador com a rede neural do filho
+            new_prey = Prey(child_x, child_y, self.energy, child)
             new_prey.generation = self.generation + 1
             new_prey.neural_network = NeuralNetwork()  # Create new neural network for offspring
-            #new_prey.reward = new_prey.neural_network.calculate_reward(
-            #    energy_used=self.energy
-            #)
             mutation_rate = max(0.01, MUTATION_RATE - new_prey.reward / 100)
             new_prey.neural_network.mutate(mutation_rate)
             preys.append(new_prey)
@@ -283,7 +288,7 @@ class Prey:
 
 class Predator:
     """Class representing a predator entity."""
-    def __init__(self, x, y, energy=None):
+    def __init__(self, x, y, energy=None, neural_network=None):
         self.x = x
         self.y = y
         self.color = PREDATOR_COLOR
@@ -292,7 +297,7 @@ class Predator:
         self.split_progress = 0  # Number of successful prey eaten for splitting
         self.digestion = 0  # Digestion timer
         self.sensors = [0, 0, 0, 0]  # Sensor distances for 4 angled directions
-        self.neural_network = NeuralNetwork()  # Neural network instance
+        self.neural_network = neural_network if neural_network else NeuralNetwork()  # Nova ou existente
         self.direction = random.uniform(0, 360)  # In degrees
         self.reward = 0.0
         self.generation = 1
@@ -343,7 +348,7 @@ class Predator:
             if self.energy <= 0:
                 self.energy = 0
 
-    def eat_prey(self, preys, grid):
+    def eat_prey(self, preys, grid, predators):
         for prey in preys:
             if ((self.x - prey.x) ** 2 + (self.y - prey.y) ** 2) ** 0.5 <= self.size:
                 if self.digestion == 0:
@@ -356,7 +361,18 @@ class Predator:
                     self.split_progress += 1
                     if self.split_progress >= 2:
                         self.split_progress = 0
-                        new_predator = Predator(self.x + random.randint(-10, 10), self.y + random.randint(-10, 10))
+                        parent1 = random.choice(predators)
+                        parent2 = random.choice(predators)
+
+                        # Cruzamento genético para criar a rede neural do filho
+                        child_network = parent1.neural_network.crossover(parent2.neural_network)
+
+                        # Escolher posição inicial para o novo predador (pode ser aleatória ou baseada nos pais)
+                        child_x = (parent1.x + parent2.x) // 2  # Média das posições x dos pais
+                        child_y = (parent1.y + parent2.y) // 2  # Média das posições y dos pais
+                        # Criar o novo predador com a rede neural resultante e posições iniciais
+                        new_predator = Predator(child_x, child_y, self.energy, child_network)
+                        #new_predator = Predator(self.x + random.randint(-10, 10), self.y + random.randint(-10, 10))
                         new_predator.generation = self.generation + 1
                         new_predator.neural_network = NeuralNetwork()  # Create new neural network for offspring
                         split_happened = True

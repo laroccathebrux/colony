@@ -133,3 +133,44 @@ class NeuralNetwork:
         rank += sum(abs(w) for row in self.weights_hidden_output for w in row)
         rank += sum(abs(b) for b in self.bias_output)
         return rank
+
+    def crossover(self, other):
+        """Realiza o cruzamento genético com outra rede neural."""
+        child = NeuralNetwork()  # Cria uma nova rede neural vazia
+        
+        # Combina os pesos da camada de entrada para a oculta
+        for i in range(len(self.weights_input_hidden)):
+            for j in range(len(self.weights_input_hidden[i])):
+                # Escolhe o peso de forma aleatória entre os dois pais
+                if random.random() < 0.5:
+                    child.weights_input_hidden[i][j] = self.weights_input_hidden[i][j]
+                else:
+                    child.weights_input_hidden[i][j] = other.weights_input_hidden[i][j]
+
+        # Combina os bias da camada oculta
+        for i in range(len(self.bias_hidden)):
+            if random.random() < 0.5:
+                child.bias_hidden[i] = self.bias_hidden[i]
+            else:
+                child.bias_hidden[i] = other.bias_hidden[i]
+
+        # Combina os pesos da camada oculta para a saída
+        for i in range(len(self.weights_hidden_output)):
+            for j in range(len(self.weights_hidden_output[i])):
+                if random.random() < 0.5:
+                    child.weights_hidden_output[i][j] = self.weights_hidden_output[i][j]
+                else:
+                    child.weights_hidden_output[i][j] = other.weights_hidden_output[i][j]
+
+        # Combina os bias da camada de saída
+        for i in range(len(self.bias_output)):
+            if random.random() < 0.5:
+                child.bias_output[i] = self.bias_output[i]
+            else:
+                child.bias_output[i] = other.bias_output[i]
+        
+        # Perturbação adicional para diversidade genética
+        mutation_rate = 0.1  # Taxa de mutação
+        child.mutate(mutation_rate)
+        
+        return child
