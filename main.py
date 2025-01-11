@@ -5,7 +5,7 @@ import numpy as np
 import os
 from collections import deque
 from constants import *
-from entities import create_entities, Prey, Predator
+from entities import create_entities, Prey, Predator, recreate_entities
 from math import cos, sin, radians
 
 # Initialize pygame
@@ -73,7 +73,7 @@ def draw_sensors(surface, entity):
             # Draw the sensor ray
             pygame.draw.line(surface, color, (entity.x, entity.y), (end_x, end_y), 2)
 
-def draw_sidebar(surface, selected_entity):
+def draw_sidebar(surface, selected_entity, preys, predators):
     if selected_entity and selected_entity.energy <= 0:
         selected_entity = None
     """Draw the sidebar on the right side of the screen."""
@@ -128,15 +128,47 @@ def draw_sidebar(surface, selected_entity):
             pygame.draw.rect(surface, (200, 200, 200), (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, 230, bar_width, bar_height))
             pygame.draw.rect(surface, (200, 100, 0), (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, 230, int(bar_width * digestion_percentage), bar_height))
 
-        # Sensors Information
-        '''
-        sensors = selected_entity.get_sensors(Predator)
-        sensor_label = font.render("SENSORS", True, (0, 0, 0))
-        surface.blit(sensor_label, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, 270))
-        for i, (start, end, distance, target_type) in sensors:
-            sensor_info = font.render(f"{i + 1}: {distance} ({target_type})", True, (0, 0, 0))
-            surface.blit(sensor_info, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, 300 + i * 20))
-        '''
+        # Generation info
+        generation_label = font.render("GENERATION", True, (0, 0, 0))
+        surface.blit(generation_label, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, 510))
+        generation_info = font.render(str(selected_entity.generation), True, (0, 0, 0))
+        surface.blit(generation_info, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, 530))
+
+    # Population info
+    bar_width = SIDEBAR_WIDTH - 40
+    bar_height = 20
+    font = pygame.font.Font(None, 24)
+    pop = font.render("POPULATION", True, (0, 0, 0))
+    screen.blit(pop, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, 390))
+
+    # Calculate the maximum generation for preys and predators
+    max_prey_gen = max(prey.generation for prey in preys) if preys else 0
+    max_predator_gen = max(predator.generation for predator in predators) if predators else 0
+
+    prey_qtd_label = font.render(f"Preys:", True, (0, 255, 0))
+    screen.blit(prey_qtd_label, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, 420))
+
+    prey_qtd_value = font.render(f"{len(preys)}", True, (0, 0, 0))
+    screen.blit(prey_qtd_value, (SCREEN_WIDTH - SIDEBAR_WIDTH + 160, 420))
+    
+    prey_gen_label = font.render(f"Max Gen:", True, (0, 255, 0))
+    screen.blit(prey_gen_label, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, 440))
+
+    prey_gen_value = font.render(f"{max_prey_gen}", True, (0, 0, 0))
+    screen.blit(prey_gen_value, (SCREEN_WIDTH - SIDEBAR_WIDTH + 160, 440))
+
+    predator_qtd_label = font.render(f"Predators:", True, (255, 0, 0))
+    screen.blit(predator_qtd_label, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, 460))
+
+    predator_qtd_value = font.render(f"{len(predators)}", True, (0, 0, 0))
+    screen.blit(predator_qtd_value, (SCREEN_WIDTH - SIDEBAR_WIDTH + 160, 460))
+
+    predator_gen_label = font.render(f"Max Gen:", True, (255, 0, 0))
+    screen.blit(predator_gen_label, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, 480))
+
+    predator_gen_value = font.render(f"{max_predator_gen}", True, (0, 0, 0))
+    screen.blit(predator_gen_value, (SCREEN_WIDTH - SIDEBAR_WIDTH + 160, 480))
+
 
 def draw_bottom_bar(surface):
     """Draw the bottom bar containing the matplotlib graph."""
@@ -230,6 +262,10 @@ def main():
     frame_count = 0
 
     while running:
+        if len(preys) == 0:
+            recreate_entities(grid, preys, predators, randomize_energy=False, entity_type='prey')
+        if len(predators) == 0:
+            recreate_entities(grid, preys, predators, randomize_energy=False, entity_type='predator')
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
@@ -251,7 +287,7 @@ def main():
             if old_x is not None:
                 grid.update_entity(prey, old_x, old_y)
             prey.update_energy()
-            prey.update_split(preys)
+            prey.update_split(preys, grid)
 
         for predator in predators[:]:
             #predator.update_sensors(grid, frame_count)
@@ -281,7 +317,7 @@ def main():
         screen.fill(BACKGROUND_COLOR)
 
         # Draw sidebar
-        draw_sidebar(screen, selected_entity)
+        draw_sidebar(screen, selected_entity, preys, predators)
 
         # Draw entities and sensors
         for prey in preys:
@@ -350,11 +386,13 @@ def main():
 
         # Draw sidebar
         #draw_sidebar(screen, selected_entity)
-
+        
         # Draw bottom bar
         draw_bottom_bar(screen)
 
         # Desenhar rede neural da entidade selecionada
+        if selected_entity and selected_entity.energy <= 0:
+            selected_entity = None
         if selected_entity:
             draw_neural_network(
                 screen,
