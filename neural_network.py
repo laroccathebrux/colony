@@ -1,6 +1,7 @@
 import random
 import math
 from constants import *
+import pickle
 
 class NeuralNetwork:
     """Class representing a simple neural network."""
@@ -16,6 +17,7 @@ class NeuralNetwork:
 
         self.weights_hidden_output = [[random.uniform(-1, 1) for _ in range(NEURONS)] for _ in range(OUTPUTS)]
         self.bias_output = [random.uniform(-1, 1) for _ in range(OUTPUTS)]
+        self.generation = 1
 
     def sigmoid(self, x):
         """Sigmoid activation function."""
@@ -26,23 +28,23 @@ class NeuralNetwork:
         for i in range(len(self.weights_input_hidden)):
             for j in range(len(self.weights_input_hidden[i])):
                 if random.random() < mutation_rate:
-                    print(f"Mutating Input weight {i} {j}")
+                    #print(f"Mutating Input weight {i} {j}")
                     self.weights_input_hidden[i][j] += random.uniform(-0.1, 0.1)
 
         for i in range(len(self.bias_hidden)):
             if random.random() < mutation_rate:
-                print(f"Mutating hidden bias {i}")
+                #print(f"Mutating hidden bias {i}")
                 self.bias_hidden[i] += random.uniform(-0.1, 0.1)
 
         for i in range(len(self.weights_hidden_output)):
             for j in range(len(self.weights_hidden_output[i])):
                 if random.random() < mutation_rate:
-                    print(f"Mutating hidden weight {i} {j}")
+                    #print(f"Mutating hidden weight {i} {j}")
                     self.weights_hidden_output[i][j] += random.uniform(-0.1, 0.1)
 
         for i in range(len(self.bias_output)):
             if random.random() < mutation_rate:
-                print(f"Mutating output bias {i}")
+                #print(f"Mutating output bias {i}")
                 self.bias_output[i] += random.uniform(-0.1, 0.1)
 
     def forward(self, input_data):
@@ -88,3 +90,46 @@ class NeuralNetwork:
         self.total_reward += reward
 
         return reward
+    
+    def save(self, file_path, generation):
+        """Save the neural network to a file."""
+        data = {
+            "weights_input_hidden": self.weights_input_hidden,
+            "bias_hidden": self.bias_hidden,
+            "weights_hidden_output": self.weights_hidden_output,
+            "bias_output": self.bias_output,
+            "total_reward": self.total_reward,
+            "generation" : generation
+        }
+        with open(file_path, "wb") as f:
+            pickle.dump(data, f)
+        print(f"Neural network saved to {file_path} - Generation {generation}")
+
+    @staticmethod
+    def load(file_path):
+        """Load a neural network from a file."""
+        try:
+            with open(file_path, "rb") as f:
+                data = pickle.load(f)
+            nn = NeuralNetwork()
+            nn.weights_input_hidden = data["weights_input_hidden"]
+            nn.bias_hidden = data["bias_hidden"]
+            nn.weights_hidden_output = data["weights_hidden_output"]
+            nn.bias_output = data["bias_output"]
+            nn.total_reward = data["total_reward"]
+            nn.generation = data["generation"]
+            print(f"Neural network loaded from {file_path}")
+            return nn
+        except (FileNotFoundError, EOFError, pickle.UnpicklingError):
+            print(f"Failed to load neural network from {file_path}. Using default values.")
+            return NeuralNetwork()
+        
+    def calculate_rank(self):
+        """Calculate the rank of the neural network based on weights and biases."""
+        rank = 0.0
+        # Sum the absolute values of all weights and biases
+        rank += sum(abs(w) for row in self.weights_input_hidden for w in row)
+        rank += sum(abs(b) for b in self.bias_hidden)
+        rank += sum(abs(w) for row in self.weights_hidden_output for w in row)
+        rank += sum(abs(b) for b in self.bias_output)
+        return rank

@@ -4,6 +4,7 @@ from math import cos, sin, radians, sqrt, degrees, atan2
 from constants import *
 from neural_network import NeuralNetwork
 import numpy as np
+import pickle
 
 class SpatialGrid:
     """Class for optimizing entity lookups using a spatial grid."""
@@ -138,28 +139,45 @@ class Prey:
 
     def update_split(self, preys, grid):
         if self.split_progress < 100:
-            
             self.split_progress += random.uniform(0, PREY_SPLIT_RATE)
 
-            
         if self.split_progress >= 100 and self.energy >= 30:
             self.split_progress = 0
             new_prey = Prey(self.x + random.randint(-10, 10), self.y + random.randint(-10, 10))
             new_prey.generation = self.generation + 1
             new_prey.neural_network = NeuralNetwork()  # Create new neural network for offspring
             new_prey.reward = new_prey.neural_network.calculate_reward(
-                            energy_used=self.energy
-                        )
-            #print(new_prey.reward)
-            mutation_rate = max(0.01, MUTATION_RATE - new_prey.reward / 100)  # Reduz a taxa de mutação com base na recompensa
+                energy_used=self.energy
+            )
+            mutation_rate = max(0.01, MUTATION_RATE - new_prey.reward / 100)
             new_prey.neural_network.mutate(mutation_rate)
-            #new_prey.neural_network.mutate(MUTATION_RATE)  # Apply mutation with a 10% rate
             preys.append(new_prey)
             grid.add_entity(new_prey)
 
+            # Save the best neural network
+            save_file = "models/prey_best_neural_network.pkl"
+            best_rank = float("-inf")
+
+            try:
+                # Check if the file exists and read the rank from it
+                with open(save_file, "rb") as f:
+                    saved_data = pickle.load(f)
+                    best_rank = (
+                        sum(abs(w) for row in saved_data["weights_input_hidden"] for w in row) +
+                        sum(abs(b) for b in saved_data["bias_hidden"]) +
+                        sum(abs(w) for row in saved_data["weights_hidden_output"] for w in row) +
+                        sum(abs(b) for b in saved_data["bias_output"])
+                    )
+            except (FileNotFoundError, EOFError, pickle.UnpicklingError):
+                pass  # Use default best_rank = -inf if file is missing or invalid
+
+            # Compare ranks
+            new_rank = new_prey.neural_network.calculate_rank()
+            if new_rank > best_rank:
+                new_prey.neural_network.save(save_file, new_prey.generation)
+
             # Remove the mother if the number of preys exceeds the maximum allowed
             if len(preys) > PREY_MAX:
-                #print(f"Prey max reached! KILL THEM ALL! {self}")
                 grid.remove_entity(self)
                 preys.remove(self)
                 del self
@@ -345,9 +363,32 @@ class Predator:
                         new_predator.reward = new_predator.neural_network.calculate_reward(
                             split_happened=split_happened
                         )
-                        
+
                         mutation_rate = max(0.01, MUTATION_RATE - new_predator.reward / 100)
-                        new_predator.neural_network.mutate(mutation_rate)  # Apply mutation with a 10% rate
+                        new_predator.neural_network.mutate(mutation_rate)
+
+                        # Save the best neural network
+                        save_file = "models/predator_best_neural_network.pkl"
+                        best_rank = float("-inf")
+
+                        try:
+                            # Check if the file exists and read the rank from it
+                            with open(save_file, "rb") as f:
+                                saved_data = pickle.load(f)
+                                best_rank = (
+                                    sum(abs(w) for row in saved_data["weights_input_hidden"] for w in row) +
+                                    sum(abs(b) for b in saved_data["bias_hidden"]) +
+                                    sum(abs(w) for row in saved_data["weights_hidden_output"] for w in row) +
+                                    sum(abs(b) for b in saved_data["bias_output"])
+                                )
+                        except (FileNotFoundError, EOFError, pickle.UnpicklingError):
+                            pass  # Use default best_rank = -inf if file is missing or invalid
+
+                        # Compare ranks
+                        new_rank = new_predator.neural_network.calculate_rank()
+                        if new_rank > best_rank:
+                            new_predator.neural_network.save(save_file, new_predator.generation)
+
                         return new_predator
                 return None
 
@@ -489,35 +530,105 @@ class Predator:
 def create_entities(randomize_energy=False):
     """Create initial populations of prey and predators."""
     grid = SpatialGrid(SCREEN_WIDTH, SCREEN_HEIGHT, cell_size=50)
-    preys = [Prey(random.randint(0, SCREEN_WIDTH), random.randint(0, SCREEN_HEIGHT - BOTTOMBAR_HEIGHT),
-                  random.randint(40, 100) if randomize_energy else 100)
-             for _ in range(PREY_INITIAL_POPULATION)]
-    predators = [Predator(random.randint(0, SCREEN_WIDTH), random.randint(0, SCREEN_HEIGHT - BOTTOMBAR_HEIGHT),
-                          random.randint(50, 100) if randomize_energy else 100)
-                 for _ in range(PREDATOR_INITIAL_POPULATION)]
+
+    # Paths to saved neural network models
+    prey_model_path = "models/prey_best_neural_network.pkl"
+    predator_model_path = "models/predator_best_neural_network.pkl"
+
+    # Attempt to load the best neural network for preys
+    try:
+        prey_nn = NeuralNetwork.load(prey_model_path)
+    except (FileNotFoundError, EOFError, pickle.UnpicklingError):
+        prey_nn = None
+
+    # Attempt to load the best neural network for predators
+    try:
+        predator_nn = NeuralNetwork.load(predator_model_path)
+    except (FileNotFoundError, EOFError, pickle.UnpicklingError):
+        predator_nn = None
+
+    # Create initial preys
+    preys = []
+    for _ in range(PREY_INITIAL_POPULATION):
+        prey = Prey(
+            random.randint(0, SCREEN_WIDTH),
+            random.randint(0, SCREEN_HEIGHT - BOTTOMBAR_HEIGHT),
+            random.randint(40, 100) if randomize_energy else 100
+        )
+        if prey_nn:
+            prey.neural_network = prey_nn
+            prey.generation = prey_nn.generation
+        preys.append(prey)
+
+    # Create initial predators
+    predators = []
+    for _ in range(PREDATOR_INITIAL_POPULATION):
+        predator = Predator(
+            random.randint(0, SCREEN_WIDTH),
+            random.randint(0, SCREEN_HEIGHT - BOTTOMBAR_HEIGHT),
+            random.randint(50, 100) if randomize_energy else 100
+        )
+        if predator_nn:
+            predator.neural_network = predator_nn
+            predator.generation = predator_nn.generation
+        predators.append(predator)
+
+    # Add all entities to the spatial grid
     for entity in preys + predators:
         grid.add_entity(entity)
+
     return preys, predators, grid
+
 
 def recreate_entities(grid, preys, predators, randomize_energy=False, entity_type=None):
     """Recreate populations of prey and predators while obeying PREY_MAX and PREDATOR_MAX."""
     new_preys = []
     new_predators = []
+
+    # Load the best neural network based on entity type
+    if entity_type == 'prey':
+        save_file = "models/prey_best_neural_network.pkl"
+    elif entity_type == 'predator':
+        save_file = "models/predator_best_neural_network.pkl"
+    else:
+        save_file = None
+
+    saved_neural_network = None
+    saved_generation = 1
+
+    if save_file:
+        try:
+            saved_neural_network = NeuralNetwork.load(save_file)
+            saved_generation = saved_neural_network.generation  # Load generation from file
+        except (FileNotFoundError, EOFError, pickle.UnpicklingError):
+            pass  # If the file doesn't exist, use default values
+
     # Clear the grid and remove existing entities
     if entity_type == 'prey':
         preys.clear()
-        # Create new preys and predators
         new_preys = [Prey(random.randint(0, SCREEN_WIDTH), random.randint(0, SCREEN_HEIGHT - BOTTOMBAR_HEIGHT),
-                        random.randint(40, 100) if randomize_energy else 100)
-                    for _ in range(PREY_MAX)]
+                          random.randint(40, 100) if randomize_energy else 100)
+                     for _ in range(PREY_MAX)]
+        for prey in new_preys:
+            prey.generation = saved_generation
+            if saved_neural_network:
+                prey.neural_network = saved_neural_network
         preys.extend(new_preys)
     elif entity_type == 'predator':
         predators.clear()
         new_predators = [Predator(random.randint(0, SCREEN_WIDTH), random.randint(0, SCREEN_HEIGHT - BOTTOMBAR_HEIGHT),
-                                random.randint(50, 100) if randomize_energy else 100)
-                        for _ in range(PREDATOR_MAX)]
+                                  random.randint(50, 100) if randomize_energy else 100)
+                         for _ in range(PREDATOR_MAX)]
+        for predator in new_predators:
+            predator.generation = saved_generation
+            if saved_neural_network:
+                predator.neural_network = saved_neural_network
         predators.extend(new_predators)
 
-    # Add new entities to the grid and lists
+    # Add new entities to the grid
     for entity in new_preys + new_predators:
         grid.add_entity(entity)
+
+
+
+
