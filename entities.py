@@ -144,8 +144,8 @@ class Prey:
             
         if self.split_progress >= 100 and self.energy >= 30:
             self.split_progress = 0
-            self.generation += 1
             new_prey = Prey(self.x + random.randint(-10, 10), self.y + random.randint(-10, 10))
+            new_prey.generation = self.generation + 1
             new_prey.neural_network = NeuralNetwork()  # Create new neural network for offspring
             new_prey.reward = new_prey.neural_network.calculate_reward(
                             energy_used=self.energy
@@ -338,8 +338,8 @@ class Predator:
                     self.split_progress += 1
                     if self.split_progress >= 2:
                         self.split_progress = 0
-                        self.generation += 1
                         new_predator = Predator(self.x + random.randint(-10, 10), self.y + random.randint(-10, 10))
+                        new_predator.generation = self.generation + 1
                         new_predator.neural_network = NeuralNetwork()  # Create new neural network for offspring
                         split_happened = True
                         new_predator.reward = new_predator.neural_network.calculate_reward(

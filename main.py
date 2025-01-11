@@ -77,25 +77,67 @@ def draw_sidebar(surface, selected_entity, preys, predators):
     if selected_entity and selected_entity.energy <= 0:
         selected_entity = None
     """Draw the sidebar on the right side of the screen."""
+    padding = PADDING_SPACE
     pygame.draw.rect(surface, SIDEBAR_COLOR, (SCREEN_WIDTH - SIDEBAR_WIDTH, 0, SIDEBAR_WIDTH, SIDEBAR_HEIGHT))
     font = pygame.font.Font(None, 24)
     text = font.render("Simulation Info", True, (0, 0, 0))
-    surface.blit(text, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, 20))
+    surface.blit(text, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, padding))
+
+    # Population info
+    bar_width = SIDEBAR_WIDTH - 40
+    bar_height = 20
+    font = pygame.font.Font(None, 24)
+    pop = font.render("POPULATION", True, (0, 0, 0))
+    padding = padding + PADDING_SPACE
+    screen.blit(pop, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, padding))
+
+    # Calculate the maximum generation for preys and predators
+    max_prey_gen = max(prey.generation for prey in preys) if preys else 0
+    max_predator_gen = max(predator.generation for predator in predators) if predators else 0
+    min_prey_gen = min(prey.generation for prey in preys) if preys else 0
+    min_predator_gen = min(predator.generation for predator in predators) if predators else 0
+    
+    padding = padding + PADDING_SPACE
+    prey_qtd_label = font.render(f"Preys:", True, (0, 255, 0))
+    screen.blit(prey_qtd_label, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, padding))
+    prey_qtd_value = font.render(f"{len(preys)}", True, (0, 0, 0))
+    screen.blit(prey_qtd_value, (SCREEN_WIDTH - SIDEBAR_WIDTH + 140, padding))
+  
+    padding = padding + PADDING_SPACE
+    prey_gen_label = font.render(f"Gen (max,min):", True, (0, 255, 0))
+    screen.blit(prey_gen_label, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, padding))
+    prey_gen_value = font.render(f"({max_prey_gen}, {min_prey_gen})", True, (0, 0, 0))
+    screen.blit(prey_gen_value, (SCREEN_WIDTH - SIDEBAR_WIDTH + 140, padding))
+
+    padding = padding + PADDING_SPACE
+    predator_qtd_label = font.render(f"Predators:", True, (255, 0, 0))
+    screen.blit(predator_qtd_label, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, padding))
+    predator_qtd_value = font.render(f"{len(predators)}", True, (0, 0, 0))
+    screen.blit(predator_qtd_value, (SCREEN_WIDTH - SIDEBAR_WIDTH + 140, padding))
+
+    padding = padding + PADDING_SPACE
+    predator_gen_label = font.render(f"Gen (max,min):", True, (255, 0, 0))
+    screen.blit(predator_gen_label, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, padding))
+    predator_gen_value = font.render(f"({max_predator_gen}, {min_predator_gen})", True, (0, 0, 0))
+    screen.blit(predator_gen_value, (SCREEN_WIDTH - SIDEBAR_WIDTH + 140, padding))
 
     if selected_entity:
+        padding = padding + PADDING_SPACE
         energy_label = font.render("ENERGY", True, (0, 0, 0))
-        surface.blit(energy_label, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, 60))
+        surface.blit(energy_label, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, padding))
 
         # Draw energy bar
         bar_width = SIDEBAR_WIDTH - 40
         bar_height = 20
         energy_percentage = selected_entity.energy / 100
-        pygame.draw.rect(surface, (200, 0, 0), (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, 90, bar_width, bar_height))
-        pygame.draw.rect(surface, (0, 200, 0), (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, 90, int(bar_width * energy_percentage), bar_height))
+        padding = padding + PADDING_SPACE
+        pygame.draw.rect(surface, (200, 0, 0), (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, padding, bar_width, bar_height))
+        pygame.draw.rect(surface, (0, 200, 0), (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, padding, int(bar_width * energy_percentage), bar_height))
 
         # Draw SPLIT info
+        padding = padding + PADDING_SPACE
         split_label = font.render("SPLIT", True, (0, 0, 0))
-        surface.blit(split_label, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, 130))
+        surface.blit(split_label, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, padding))
 
         # Calcular a porcentagem de SPLIT com base no tipo de entidade
         if hasattr(selected_entity, 'split_progress'):
@@ -109,65 +151,36 @@ def draw_sidebar(surface, selected_entity, preys, predators):
             split_percentage = 0
 
         # Desenhar a barra de progresso
+        padding = padding + PADDING_SPACE
         pygame.draw.rect(
             surface, 
             (200, 200, 200), 
-            (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, 160, bar_width, bar_height)
+            (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, padding, bar_width, bar_height)
         )
         pygame.draw.rect(
             surface, 
             (0, 0, 200), 
-            (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, 160, int(bar_width * split_percentage), bar_height)
+            (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, padding, int(bar_width * split_percentage), bar_height)
         )
 
         # Draw DIGESTION info (only for predators)
         if hasattr(selected_entity, 'digestion'):
+            padding = padding + PADDING_SPACE
             digestion_label = font.render("DIGESTION", True, (0, 0, 0))
-            surface.blit(digestion_label, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, 200))
+            surface.blit(digestion_label, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, padding))
             digestion_percentage = selected_entity.digestion / 100
-            pygame.draw.rect(surface, (200, 200, 200), (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, 230, bar_width, bar_height))
-            pygame.draw.rect(surface, (200, 100, 0), (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, 230, int(bar_width * digestion_percentage), bar_height))
+            padding = padding + PADDING_SPACE
+            pygame.draw.rect(surface, (200, 200, 200), (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, padding, bar_width, bar_height))
+            pygame.draw.rect(surface, (200, 100, 0), (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, padding, int(bar_width * digestion_percentage), bar_height))
 
         # Generation info
         generation_label = font.render("GENERATION", True, (0, 0, 0))
-        surface.blit(generation_label, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, 510))
+        padding = padding + PADDING_SPACE
+        surface.blit(generation_label, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, padding))
         generation_info = font.render(str(selected_entity.generation), True, (0, 0, 0))
-        surface.blit(generation_info, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, 530))
+        padding = padding + PADDING_SPACE
+        surface.blit(generation_info, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, padding))
 
-    # Population info
-    bar_width = SIDEBAR_WIDTH - 40
-    bar_height = 20
-    font = pygame.font.Font(None, 24)
-    pop = font.render("POPULATION", True, (0, 0, 0))
-    screen.blit(pop, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, 390))
-
-    # Calculate the maximum generation for preys and predators
-    max_prey_gen = max(prey.generation for prey in preys) if preys else 0
-    max_predator_gen = max(predator.generation for predator in predators) if predators else 0
-
-    prey_qtd_label = font.render(f"Preys:", True, (0, 255, 0))
-    screen.blit(prey_qtd_label, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, 420))
-
-    prey_qtd_value = font.render(f"{len(preys)}", True, (0, 0, 0))
-    screen.blit(prey_qtd_value, (SCREEN_WIDTH - SIDEBAR_WIDTH + 160, 420))
-    
-    prey_gen_label = font.render(f"Max Gen:", True, (0, 255, 0))
-    screen.blit(prey_gen_label, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, 440))
-
-    prey_gen_value = font.render(f"{max_prey_gen}", True, (0, 0, 0))
-    screen.blit(prey_gen_value, (SCREEN_WIDTH - SIDEBAR_WIDTH + 160, 440))
-
-    predator_qtd_label = font.render(f"Predators:", True, (255, 0, 0))
-    screen.blit(predator_qtd_label, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, 460))
-
-    predator_qtd_value = font.render(f"{len(predators)}", True, (0, 0, 0))
-    screen.blit(predator_qtd_value, (SCREEN_WIDTH - SIDEBAR_WIDTH + 160, 460))
-
-    predator_gen_label = font.render(f"Max Gen:", True, (255, 0, 0))
-    screen.blit(predator_gen_label, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, 480))
-
-    predator_gen_value = font.render(f"{max_predator_gen}", True, (0, 0, 0))
-    screen.blit(predator_gen_value, (SCREEN_WIDTH - SIDEBAR_WIDTH + 160, 480))
 
 
 def draw_bottom_bar(surface):
@@ -318,7 +331,7 @@ def main():
 
         # Draw sidebar
         draw_sidebar(screen, selected_entity, preys, predators)
-
+        
         # Draw entities and sensors
         for prey in preys:
             #prey.update_sensors(grid, frame_count)  # Update sensors for prey
@@ -327,7 +340,7 @@ def main():
             if prey == selected_entity:
                 font = pygame.font.Font(None, 24)
                 sensor_label = font.render("SENSORS", True, (0, 0, 0))
-                screen.blit(sensor_label, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, 270))
+                screen.blit(sensor_label, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, 390))
                 #draw_sensors(screen, prey)
                 sensors = selected_entity.get_sensors(preys, predators)
                 for i, sensor in enumerate(sensors):
@@ -345,7 +358,7 @@ def main():
                         color = (200, 200, 200)  # Cinza para nenhum alvo
 
                     sensor_info = font.render(f"{i + 1}: {distance} ({target_type})", True, (0, 0, 0))
-                    screen.blit(sensor_info, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, 300 + i * 20))
+                    screen.blit(sensor_info, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, 410 + i * 20))
                     #screen.blit(sensor_info, (SCREEN_HEIGHT - BOTTOMBAR_HEIGHT + 20, 300 + i * 20))
 
                     # Desenha o sensor com a cor e comprimento corretos
@@ -359,7 +372,7 @@ def main():
             if predator == selected_entity:
                 font = pygame.font.Font(None, 24)
                 sensor_label = font.render("SENSORS", True, (0, 0, 0))
-                screen.blit(sensor_label, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, 270))
+                screen.blit(sensor_label, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, 450))
                 #draw_sensors(screen, prey)
                 sensors = selected_entity.get_sensors(preys, predators)
                 for i, sensor in enumerate(sensors):
@@ -377,7 +390,7 @@ def main():
                         color = (200, 200, 200)  # Cinza para nenhum alvo
 
                     sensor_info = font.render(f"{i + 1}: {distance} ({target_type})", True, (0, 0, 0))
-                    screen.blit(sensor_info, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, 300 + i * 20))
+                    screen.blit(sensor_info, (SCREEN_WIDTH - SIDEBAR_WIDTH + 20, 480 + i * 20))
                     #screen.blit(sensor_info, (SCREEN_HEIGHT - BOTTOMBAR_HEIGHT + 20, 300 + i * 20))
 
                     # Desenha o sensor com a cor e comprimento corretos
