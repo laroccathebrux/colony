@@ -19,6 +19,15 @@ class NeuralNetwork:
         self.bias_output = [random.uniform(-1, 1) for _ in range(OUTPUTS)]
         self.generation = 1
 
+    # Adicionando funções de ativação
+    def relu(self, x):
+        """ReLU activation function."""
+        return max(0, x)
+    
+    def tanh(self, x):
+        """tanh activation function."""
+        return (math.exp(x) - math.exp(-x)) / (math.exp(x) + math.exp(-x))
+
     def sigmoid(self, x):
         """Sigmoid activation function."""
         return 1 / (1 + math.exp(-x))
@@ -60,13 +69,13 @@ class NeuralNetwork:
         for i in range(len(self.hidden_layer)):
             activation = sum(w * inp for w, inp in zip(self.weights_input_hidden[i], self.inputs))
             activation += self.bias_hidden[i]
-            self.hidden_layer[i] = self.sigmoid(activation)
+            self.hidden_layer[i] = self.tanh(activation)
 
         # Calculate output layer activations
         for i in range(len(self.outputs)):
             activation = sum(w * hidden for w, hidden in zip(self.weights_hidden_output[i], self.hidden_layer))
             activation += self.bias_output[i]
-            self.outputs[i] = self.sigmoid(activation)
+            self.outputs[i] = self.tanh(activation)
 
         return self.outputs
 
