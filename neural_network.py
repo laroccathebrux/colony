@@ -5,12 +5,13 @@ import pickle
 
 class NeuralNetwork:
     """Class representing a simple neural network."""
-    def __init__(self):
+    def __init__(self, is_prey=False):
 
         self.inputs = [0.0] * INPUTS  # 14 inputs
         self.hidden_layer = [0.0] * NEURONS  # 4 hidden neurons
         self.outputs = [0.0] * OUTPUTS  # 2 outputs
         self.total_reward = 0.0  # Acumula as recompensas
+        self.is_prey = is_prey  # Define se é uma presa ou predador
 
         # Limitar pesos e biases a um intervalo menor
         self.weights_input_hidden = [[random.uniform(-0.5, 0.5) for _ in range(INPUTS)] for _ in range(NEURONS)]
@@ -19,6 +20,7 @@ class NeuralNetwork:
         self.bias_output = [random.uniform(-0.5, 0.5) for _ in range(OUTPUTS)]
         
         self.generation = 1
+        self.rank = 0.0
 
     # Adicionando funções de ativação
     def relu(self, x):
@@ -80,42 +82,39 @@ class NeuralNetwork:
 
         return self.outputs
 
-    def calculate_reward(self, 
-                     captured_prey=False, 
-                     previous_distance=0.0, 
-                     current_distance=0.0, 
-                     energy_used=0, 
-                     split_happened=False, 
-                     speed=0.0, 
-                     group_bonus=0):
-        """Calculate the reward for the current step."""
+    def calculate_reward(self, captured_prey=False, previous_distance=0.0, current_distance=0.0, energy_used=0, split_happened=False, speed=0.0, group_bonus=0):
         reward = 0.0
 
-        # Recompensa por capturar presa
-        reward += 10 if captured_prey else -1
+        if self.is_prey:  # Para presas
+            # Recompensa por sobreviver
+            reward += 5
 
-        # Aproximação do alvo
-        reward += max(0, previous_distance - current_distance) * 2  # Peso maior para aproximação
+            # Penalidade reduzida por energia
+            reward -= energy_used * 0.005
 
-        # Penalidade por energia gasta
-        reward -= energy_used * 0.05
+            # Recompensa por velocidade (evitar predadores)
+            reward += min(speed, 5) * 0.5
+
+        else:  # Para predadores
+            # Recompensa por capturar presas
+            reward += 10 if captured_prey else -1
+
+            # Penalidade por energia gasta
+            reward -= energy_used * 0.005
+
+            # Recompensa por estratégia de grupo
+            reward += group_bonus
 
         # Recompensa por reprodução
         reward += 20 if split_happened else 0
 
-        # Recompensa baseada na velocidade (quanto maior, melhor até um limite)
-        reward += min(speed, 5) * 0.5  # Máximo de 5 pontos de bônus para velocidade
-
-        # Estratégia de Grupo: Recompensa por cooperação (ou penalidade por competição)
-        reward += group_bonus
-
-        # Acumular a recompensa total
+        # Acumular no total
         self.total_reward += reward
-
         return reward
 
+
     
-    def save(self, file_path, generation):
+    def save(self, file_path, generation, best_rank):
         """Save the neural network to a file."""
         data = {
             "weights_input_hidden": self.weights_input_hidden,
@@ -123,11 +122,12 @@ class NeuralNetwork:
             "weights_hidden_output": self.weights_hidden_output,
             "bias_output": self.bias_output,
             "total_reward": self.total_reward,
-            "generation" : generation
+            "generation" : generation,
+            "rank": best_rank
         }
         with open(file_path, "wb") as f:
             pickle.dump(data, f)
-        print(f"Neural network saved to {file_path} - Generation {generation}")
+        print(f"Neural network saved to {file_path} - Generation {generation} - Best Rank {best_rank}")
 
     @staticmethod
     def load(file_path):
@@ -142,6 +142,7 @@ class NeuralNetwork:
             nn.bias_output = data["bias_output"]
             nn.total_reward = data["total_reward"]
             nn.generation = data["generation"]
+            nn.rank = data["rank"]
             print(f"Neural network loaded from {file_path}")
             return nn
         except (FileNotFoundError, EOFError, pickle.UnpicklingError):
@@ -175,8 +176,11 @@ class NeuralNetwork:
         rank = reward_factor - 0.01 * l1_penalty + 0.001 * l2_weights - 0.1 * l2_bias + no_reward_penalty
 
         # Normalizar pelo número de gerações (opcional)
-        rank = rank / self.generation
+        rank = rank / max(self.generation, 1)  # Evitar divisão por zero
 
+        # Log detalhado
+        #print(f"Rank Components - Reward: {reward_factor}, L1: {l1_penalty}, L2: {l2_weights}, Bias Penalty: {l2_bias}, Normalized Rank: {rank}")
+        
         return rank
 
 

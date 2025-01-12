@@ -6,6 +6,11 @@ from neural_network import NeuralNetwork
 import numpy as np
 import pickle
 
+best_rank = {
+    "Prey": float("-inf"),
+    "Predator": float("-inf")
+}
+
 class SpatialGrid:
     """Class for optimizing entity lookups using a spatial grid."""
     def __init__(self, width, height, cell_size):
@@ -64,6 +69,7 @@ class Prey:
         self.reward = 0.0 
         self.generation = 1
         self.last_direction = None 
+        self.rank = 0.0
 
     def draw(self, surface):
         pygame.draw.circle(surface, self.color, (self.x, self.y), self.size)
@@ -138,7 +144,7 @@ class Prey:
             if self.energy >= 60:
                 self.active = True
 
-    def update_split(self, preys, grid):
+    def update_split(self, preys, grid, previous_x, previous_y):
         if self.split_progress < 100:
             self.split_progress += random.uniform(0, PREY_SPLIT_RATE)
 
@@ -154,7 +160,7 @@ class Prey:
             # Criação de um novo predador com a rede neural do filho
             new_prey = Prey(child_x, child_y, self.energy, child)
             new_prey.generation = self.generation + 1
-            new_prey.neural_network = NeuralNetwork()  # Create new neural network for offspring
+            new_prey.neural_network = NeuralNetwork(is_prey=True)  # Create new neural network for offspring
             mutation_rate = max(0.01, MUTATION_RATE - new_prey.reward / 100)
             new_prey.neural_network.mutate(mutation_rate)
             preys.append(new_prey)
@@ -162,48 +168,55 @@ class Prey:
 
             # Save the best neural network
             save_file = "models/prey_best_neural_network.pkl"
-            best_rank = float("-inf")
+            #best_rank = float("-inf")
 
             try:
                 # Check if the file exists and read the rank from it
                 with open(save_file, "rb") as f:
                     saved_data = pickle.load(f)
-                    best_rank = (
-                        # Regularização L2 para pesos e bias
-                        0.001 * (
-                            sum(w**2 for row in saved_data["weights_input_hidden"] for w in row) +
-                            sum(w**2 for row in saved_data["weights_hidden_output"] for w in row) +
-                            sum(b**2 for b in saved_data["bias_hidden"]) +
-                            sum(b**2 for b in saved_data["bias_output"])
-                        ) -
-                        # Penalidade L1 para valores extremos
-                        0.01 * (
-                            sum(abs(w) for row in saved_data["weights_input_hidden"] for w in row) +
-                            sum(abs(w) for row in saved_data["weights_hidden_output"] for w in row) +
-                            sum(abs(b) for b in saved_data["bias_hidden"]) +
-                            sum(abs(b) for b in saved_data["bias_output"])
-                        ) +
-                        # Recompensa acumulada
-                        saved_data.get("total_reward", 0) * 10 -
-                        # Penalidade adicional para bias (se aplicável)
-                        0.1 * sum(b**2 for b in saved_data["bias_output"])
-                    )
+
+                    # Cálculo do rank salvo
+                    best_rank["Prey"] = saved_data.get("rank", float("-inf"))
 
 
             except (FileNotFoundError, EOFError, pickle.UnpicklingError):
                 pass  # Use default best_rank = -inf if file is missing or invalid
 
-            # Compare ranks
-            new_rank = new_prey.neural_network.calculate_rank()
-            print(f"New rank: {new_rank} - Best rank: {best_rank}")
-            if new_rank > best_rank:
-                new_prey.neural_network.save(save_file, new_prey.generation)
+            # reward
+            # Calcular a velocidade com base no movimento
+            speed = ((new_prey.x - previous_x)**2 + (new_prey.y - previous_y)**2) ** 0.5
+            # Calcular a recompensa usando os novos fatores
+            reward = new_prey.neural_network.calculate_reward(
+                captured_prey=False,  # Presas não capturam
+                previous_distance=0.0,  # Distância não se aplica aqui (ou ajuste conforme necessário)
+                current_distance=0.0,
+                energy_used=new_prey.energy,  # Energia gasta no movimento
+                split_happened=True,  # Condição de reprodução
+                speed=speed,
+                group_bonus=0  # Adicione lógica de grupo se necessário
+            )
+            new_prey.neural_network.total_reward += reward
+            new_prey.rank = new_prey.neural_network.calculate_rank()
+            #best_rank["Prey"] = max(prey.rank for prey in preys)
 
+            #print(f"Prey rank: {self.rank} - Best rank: {best_rank['Prey']}")
+
+            if new_prey.rank >= best_rank["Prey"]:
+                best_rank["Prey"] = new_prey.rank
+                new_prey.neural_network.save(save_file, new_prey.generation, best_rank["Prey"])
+            """
+            new_rank = max(prey.neural_network.calculate_rank() for prey in preys)
+
+            if new_rank > best_rank["Prey"]:
+                best_rank["Prey"] = new_rank
+                new_prey.neural_network.save(save_file, new_prey.generation, best_rank["Prey"])
+            """
             # Remove the mother if the number of preys exceeds the maximum allowed
             if len(preys) > PREY_MAX:
-                grid.remove_entity(self)
-                preys.remove(self)
-                del self
+                if self.rank <= best_rank["Prey"]:
+                    grid.remove_entity(self)
+                    preys.remove(self)
+                    del self
 
     def get_sensors(self, preys, predators):
         """Retorna os sensores (raios) da presa, otimizados com NumPy."""
@@ -320,6 +333,7 @@ class Predator:
         self.reward = 0.0
         self.generation = 1
         self.last_direction = None 
+        self.rank = 0.0
 
     def draw(self, surface):
         pygame.draw.circle(surface, self.color, (self.x, self.y), self.size)
@@ -367,7 +381,7 @@ class Predator:
             if self.energy <= 0:
                 self.energy = 0
 
-    def eat_prey(self, preys, grid, predators):
+    def eat_prey(self, preys, grid, predators, previous_x, previous_y):
         for prey in preys:
             if ((self.x - prey.x) ** 2 + (self.y - prey.y) ** 2) ** 0.5 <= self.size:
                 if self.digestion == 0:
@@ -404,39 +418,52 @@ class Predator:
 
                         # Save the best neural network
                         save_file = "models/predator_best_neural_network.pkl"
-                        best_rank = float("-inf")
+                        #best_rank = float("-inf")
 
                         try:
                             # Check if the file exists and read the rank from it
                             with open(save_file, "rb") as f:
                                 saved_data = pickle.load(f)
-                                best_rank = (
-                                    # Regularização L2 para pesos e bias
-                                    0.001 * (
-                                        sum(w**2 for row in saved_data["weights_input_hidden"] for w in row) +
-                                        sum(w**2 for row in saved_data["weights_hidden_output"] for w in row) +
-                                        sum(b**2 for b in saved_data["bias_hidden"]) +
-                                        sum(b**2 for b in saved_data["bias_output"])
-                                    ) -
-                                    # Penalidade L1 para valores extremos
-                                    0.01 * (
-                                        sum(abs(w) for row in saved_data["weights_input_hidden"] for w in row) +
-                                        sum(abs(w) for row in saved_data["weights_hidden_output"] for w in row) +
-                                        sum(abs(b) for b in saved_data["bias_hidden"]) +
-                                        sum(abs(b) for b in saved_data["bias_output"])
-                                    ) +
-                                    # Recompensa acumulada
-                                    saved_data.get("total_reward", 0) * 10 -
-                                    # Penalidade adicional para bias (se aplicável)
-                                    0.1 * sum(b**2 for b in saved_data["bias_output"])
-                                )
+
+                                # Cálculo do rank salvo
+                                best_rank["Predator"] = saved_data.get("rank", float("-inf"))
+
+
                         except (FileNotFoundError, EOFError, pickle.UnpicklingError):
                             pass  # Use default best_rank = -inf if file is missing or invalid
 
+                        # Calcular a velocidade com base no movimento
+                        speed = ((new_predator.x - previous_x)**2 + (new_predator.y - previous_y)**2) ** 0.5
+
+                        # Estratégia de grupo: Recompensa por proximidade a outros predadores
+                        group_bonus = 0
+                        for other in predators:
+                            if other != new_predator:
+                                distance = ((new_predator.x - other.x)**2 + (new_predator.y - other.y)**2) ** 0.5
+                                if distance < 20:  # Recompensa se estiver perto de outros predadores
+                                    group_bonus += 1
+
+                        # Calcular a recompensa
+                        reward = new_predator.neural_network.calculate_reward(
+                            captured_prey=new_predator is not None,
+                            previous_distance=0.0,  # Ajuste conforme necessário
+                            current_distance=0.0,
+                            energy_used=new_predator.energy,
+                            split_happened=True,
+                            speed=speed,
+                            group_bonus=group_bonus
+                        )
+                        new_predator.neural_network.total_reward += reward
+
                         # Compare ranks
-                        new_rank = new_predator.neural_network.calculate_rank()
-                        if new_rank > best_rank:
-                            new_predator.neural_network.save(save_file, new_predator.generation)
+                
+                        new_predator.rank = new_predator.neural_network.calculate_rank()
+                        #best_rank["Predator"] = max(predator.rank for predator in predators) 
+                    
+
+                        if new_predator.rank >= best_rank["Predator"]:
+                            best_rank["Predator"] = new_predator.rank
+                            new_predator.neural_network.save(save_file, new_predator.generation, best_rank["Predator"])
 
                         return new_predator
                 return None
@@ -607,6 +634,7 @@ def create_entities(randomize_energy=False):
         if prey_nn:
             prey.neural_network = prey_nn
             prey.generation = prey_nn.generation
+            prey.rank = prey_nn.rank
         preys.append(prey)
 
     # Create initial predators
@@ -620,6 +648,7 @@ def create_entities(randomize_energy=False):
         if predator_nn:
             predator.neural_network = predator_nn
             predator.generation = predator_nn.generation
+            predator.rank = predator_nn.rank
         predators.append(predator)
 
     # Add all entities to the spatial grid
@@ -644,11 +673,13 @@ def recreate_entities(grid, preys, predators, randomize_energy=False, entity_typ
 
     saved_neural_network = None
     saved_generation = 1
+    saved_rank = 0.0
 
     if save_file:
         try:
             saved_neural_network = NeuralNetwork.load(save_file)
             saved_generation = saved_neural_network.generation  # Load generation from file
+            saved_rank = saved_neural_network.rank
         except (FileNotFoundError, EOFError, pickle.UnpicklingError):
             pass  # If the file doesn't exist, use default values
 
@@ -660,6 +691,7 @@ def recreate_entities(grid, preys, predators, randomize_energy=False, entity_typ
                      for _ in range(PREY_MAX)]
         for prey in new_preys:
             prey.generation = saved_generation
+            prey.rank = saved_rank
             if saved_neural_network:
                 prey.neural_network = saved_neural_network
         preys.extend(new_preys)
@@ -670,6 +702,7 @@ def recreate_entities(grid, preys, predators, randomize_energy=False, entity_typ
                          for _ in range(PREDATOR_MAX)]
         for predator in new_predators:
             predator.generation = saved_generation
+            predator.rank = saved_rank
             if saved_neural_network:
                 predator.neural_network = saved_neural_network
         predators.extend(new_predators)

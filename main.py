@@ -314,22 +314,9 @@ def main():
             if old_x is not None:
                 grid.update_entity(prey, old_x, old_y)
             prey.update_energy()
-            prey.update_split(preys, grid)
+            prey.update_split(preys, grid, previous_x, previous_y)
 
-            # Calcular a velocidade com base no movimento
-            speed = ((prey.x - previous_x)**2 + (prey.y - previous_y)**2) ** 0.5
-
-            # Calcular a recompensa usando os novos fatores
-            reward = prey.neural_network.calculate_reward(
-                captured_prey=False,  # Presas não capturam
-                previous_distance=0.0,  # Distância não se aplica aqui (ou ajuste conforme necessário)
-                current_distance=0.0,
-                energy_used=prey.energy,  # Energia gasta no movimento
-                split_happened=False,  # Condição de reprodução
-                speed=speed,
-                group_bonus=0  # Adicione lógica de grupo se necessário
-            )
-            prey.neural_network.total_reward += reward
+            
 
         for predator in predators[:]:
             previous_x, previous_y = predator.x, predator.y
@@ -339,33 +326,10 @@ def main():
             if old_x is not None:
                 grid.update_entity(predator, old_x, old_y)
             predator.update_energy()
-            new_predator = predator.eat_prey(preys, grid, predators)
+            new_predator = predator.eat_prey(preys, grid, predators, previous_x, previous_y)
             if new_predator:
                 predators.append(new_predator)
                 grid.add_entity(new_predator)
-            
-            # Calcular a velocidade com base no movimento
-            speed = ((predator.x - previous_x)**2 + (predator.y - previous_y)**2) ** 0.5
-
-            # Estratégia de grupo: Recompensa por proximidade a outros predadores
-            group_bonus = 0
-            for other in predators:
-                if other != predator:
-                    distance = ((predator.x - other.x)**2 + (predator.y - other.y)**2) ** 0.5
-                    if distance < 20:  # Recompensa se estiver perto de outros predadores
-                        group_bonus += 1
-
-            # Calcular a recompensa
-            reward = predator.neural_network.calculate_reward(
-                captured_prey=new_predator is not None,
-                previous_distance=0.0,  # Ajuste conforme necessário
-                current_distance=0.0,
-                energy_used=predator.energy,
-                split_happened=False,
-                speed=speed,
-                group_bonus=group_bonus
-            )
-            predator.neural_network.total_reward += reward
             
         # Remove dead predators
         for predator in predators[:]:
