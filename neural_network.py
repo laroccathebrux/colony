@@ -39,8 +39,9 @@ class NeuralNetwork:
         """Mutate the weights and biases with a given mutation rate."""
         for i in range(len(self.weights_input_hidden)):
             for j in range(len(self.weights_input_hidden[i])):
-                if random.random() < mutation_rate:
-                    #print(f"Mutating Input weight {i} {j}")
+                num = random.random()
+                if num < mutation_rate:
+                    #print(f"Mutating Input weight {i} {j} - {num} < {mutation_rate}")
                     self.weights_input_hidden[i][j] += random.uniform(-0.1, 0.1)
 
         for i in range(len(self.bias_hidden)):
@@ -221,7 +222,7 @@ class NeuralNetwork:
                 child.bias_output[i] = other.bias_output[i]
         
         # Perturbação adicional para diversidade genética
-        mutation_rate = 0.1  # Taxa de mutação
+        mutation_rate = MUTATION_RATE  # Taxa de mutação
         child.mutate(mutation_rate)
         
         return child

@@ -150,37 +150,52 @@ class Prey:
 
         if self.split_progress >= 100: # and self.energy >= 30:
             self.split_progress = 0
-            # Cruzamento genético entre dois indivíduos
-            parent1 = random.choice(preys)
-            parent2 = random.choice(preys)
-            child = parent1.neural_network.crossover(parent2.neural_network)
-            # Escolher posição inicial para o novo predador (pode ser aleatória ou baseada nos pais)
-            child_x = (parent1.x + parent2.x) // 2  # Média das posições x dos pais
-            child_y = (parent1.y + parent2.y) // 2  # Média das posições y dos pais
-            # Criação de um novo predador com a rede neural do filho
-            new_prey = Prey(child_x, child_y, self.energy, child)
-            new_prey.generation = self.generation + 1
-            new_prey.neural_network = NeuralNetwork(is_prey=True)  # Create new neural network for offspring
-            mutation_rate = max(0.01, MUTATION_RATE - new_prey.reward / 100)
-            new_prey.neural_network.mutate(mutation_rate)
-            preys.append(new_prey)
-            grid.add_entity(new_prey)
 
             # Save the best neural network
             save_file = "models/prey_best_neural_network.pkl"
-            #best_rank = float("-inf")
+            # Initialize parent2 as None
+            parent2 = None
 
             try:
-                # Check if the file exists and read the rank from it
+                # Check if the file exists and read the saved neural network
                 with open(save_file, "rb") as f:
                     saved_data = pickle.load(f)
 
                     # Cálculo do rank salvo
                     best_rank["Prey"] = saved_data.get("rank", float("-inf"))
 
+                    # Extract the neural network data
+                    saved_neural_network_data = saved_data.get("neural_network")
 
-            except (FileNotFoundError, EOFError, pickle.UnpicklingError):
-                pass  # Use default best_rank = -inf if file is missing or invalid
+                    # If the saved data contains a neural network, create parent2
+                    if saved_neural_network_data:
+                        parent2_neural_network = NeuralNetwork(is_prey=True)
+                        parent2_neural_network.load_from_data(saved_neural_network_data)
+
+                        # Create parent2 using the saved neural network
+                        parent2 = Prey(random.randint(0, grid.width), random.randint(0, grid.height), self.energy, parent2_neural_network)
+
+            except (FileNotFoundError, EOFError, pickle.UnpicklingError, AttributeError):
+                pass  # If the file is missing or invalid, parent2 will remain None
+
+            # If parent2 was not successfully created, fallback to random choice
+            if parent2 is None:
+                parent2 = random.choice(preys)
+            # Cruzamento genético entre dois indivíduos
+            #parent1 = random.choice(preys)
+            #parent2 = random.choice(preys)
+            child = self.neural_network.crossover(parent2.neural_network)
+            # Escolher posição inicial para o novo predador (pode ser aleatória ou baseada nos pais)
+            child_x = (self.x + parent2.x) // 2  # Média das posições x dos pais
+            child_y = (self.y + parent2.y) // 2  # Média das posições y dos pais
+            # Criação de um novo predador com a rede neural do filho
+            new_prey = Prey(child_x, child_y, self.energy, child)
+            new_prey.generation = self.generation + 1
+            new_prey.neural_network = NeuralNetwork(is_prey=True)  # Create new neural network for offspring
+            #mutation_rate = max(0.01, MUTATION_RATE - new_prey.reward / 100)
+            new_prey.neural_network.mutate(MUTATION_RATE)
+            preys.append(new_prey)
+            grid.add_entity(new_prey)
 
             # reward
             # Calcular a velocidade com base no movimento
@@ -213,10 +228,9 @@ class Prey:
             """
             # Remove the mother if the number of preys exceeds the maximum allowed
             if len(preys) > PREY_MAX:
-                if self.rank <= best_rank["Prey"]:
-                    grid.remove_entity(self)
-                    preys.remove(self)
-                    del self
+                grid.remove_entity(self)
+                preys.remove(self)
+                del self
 
     def get_sensors(self, preys, predators):
         """Retorna os sensores (raios) da presa, otimizados com NumPy."""
@@ -394,15 +408,49 @@ class Predator:
                     self.split_progress += 1
                     if self.split_progress >= 2:
                         self.split_progress = 0
-                        parent1 = random.choice(predators)
-                        parent2 = random.choice(predators)
+
+                        # Initialize parent2 as None
+                        parent2 = None
+
+                        # Save the best neural network
+                        save_file = "models/predator_best_neural_network.pkl"
+                        #best_rank = float("-inf")
+
+                        try:
+                            # Check if the file exists and read the saved neural network
+                            with open(save_file, "rb") as f:
+                                saved_data = pickle.load(f)
+
+                                # Cálculo do rank salvo
+                                best_rank["Predator"] = saved_data.get("rank", float("-inf"))
+
+                                # Extract the neural network data
+                                saved_neural_network_data = saved_data.get("neural_network")
+
+                                # If the saved data contains a neural network, create parent2
+                                if saved_neural_network_data:
+                                    parent2_neural_network = NeuralNetwork(is_prey=True)
+                                    parent2_neural_network.load_from_data(saved_neural_network_data)
+
+                                    # Create parent2 using the saved neural network
+                                    parent2 = Predator(random.randint(0, grid.width), random.randint(0, grid.height), self.energy, parent2_neural_network)
+
+                        except (FileNotFoundError, EOFError, pickle.UnpicklingError, AttributeError):
+                            pass  # If the file is missing or invalid, parent2 will remain None
+
+                        # If parent2 was not successfully created, fallback to random choice
+                        if parent2 is None:
+                            parent2 = random.choice(preys)
+
+                        #parent1 = random.choice(predators)
+                        #parent2 = random.choice(predators)
 
                         # Cruzamento genético para criar a rede neural do filho
-                        child_network = parent1.neural_network.crossover(parent2.neural_network)
+                        child_network = self.neural_network.crossover(parent2.neural_network)
 
                         # Escolher posição inicial para o novo predador (pode ser aleatória ou baseada nos pais)
-                        child_x = (parent1.x + parent2.x) // 2  # Média das posições x dos pais
-                        child_y = (parent1.y + parent2.y) // 2  # Média das posições y dos pais
+                        child_x = (self.x + parent2.x) // 2  # Média das posições x dos pais
+                        child_y = (self.y + parent2.y) // 2  # Média das posições y dos pais
                         # Criar o novo predador com a rede neural resultante e posições iniciais
                         new_predator = Predator(child_x, child_y, self.energy, child_network)
                         #new_predator = Predator(self.x + random.randint(-10, 10), self.y + random.randint(-10, 10))
@@ -413,24 +461,9 @@ class Predator:
                             split_happened=split_happened
                         )
 
-                        mutation_rate = max(0.01, MUTATION_RATE - new_predator.reward / 100)
-                        new_predator.neural_network.mutate(mutation_rate)
+                        #mutation_rate = max(0.01, MUTATION_RATE - new_predator.reward / 100)
+                        new_predator.neural_network.mutate(MUTATION_RATE)
 
-                        # Save the best neural network
-                        save_file = "models/predator_best_neural_network.pkl"
-                        #best_rank = float("-inf")
-
-                        try:
-                            # Check if the file exists and read the rank from it
-                            with open(save_file, "rb") as f:
-                                saved_data = pickle.load(f)
-
-                                # Cálculo do rank salvo
-                                best_rank["Predator"] = saved_data.get("rank", float("-inf"))
-
-
-                        except (FileNotFoundError, EOFError, pickle.UnpicklingError):
-                            pass  # Use default best_rank = -inf if file is missing or invalid
 
                         # Calcular a velocidade com base no movimento
                         speed = ((new_predator.x - previous_x)**2 + (new_predator.y - previous_y)**2) ** 0.5
