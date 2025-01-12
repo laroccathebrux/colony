@@ -154,7 +154,7 @@ class Prey:
             # Save the best neural network
             save_file = "models/prey_best_neural_network.pkl"
             # Initialize parent2 as None
-            parent2 = None
+            parent3 = None
 
             try:
                 # Check if the file exists and read the saved neural network
@@ -169,22 +169,28 @@ class Prey:
 
                     # If the saved data contains a neural network, create parent2
                     if saved_neural_network_data:
-                        parent2_neural_network = NeuralNetwork(is_prey=True)
-                        parent2_neural_network.load_from_data(saved_neural_network_data)
+                        parent3_neural_network = NeuralNetwork(is_prey=True)
+                        parent3_neural_network.load_from_data(saved_neural_network_data)
 
                         # Create parent2 using the saved neural network
-                        parent2 = Prey(random.randint(0, grid.width), random.randint(0, grid.height), self.energy, parent2_neural_network)
+                        parent3 = Prey(random.randint(0, grid.width), random.randint(0, grid.height), self.energy, parent3_neural_network)
 
             except (FileNotFoundError, EOFError, pickle.UnpicklingError, AttributeError):
                 pass  # If the file is missing or invalid, parent2 will remain None
 
+            parent2_filter = [prey for prey in preys if prey.generation == self.generation]
+            parent2 = random.choice(parent2_filter)
+
             # If parent2 was not successfully created, fallback to random choice
             if parent2 is None:
                 parent2 = random.choice(preys)
+            if parent3 is None:
+                parent3 = random.choice(preys)
             # Cruzamento genético entre dois indivíduos
             #parent1 = random.choice(preys)
             #parent2 = random.choice(preys)
             child = self.neural_network.crossover(parent2.neural_network)
+            child = child.crossover(parent3.neural_network)
             # Escolher posição inicial para o novo predador (pode ser aleatória ou baseada nos pais)
             child_x = (self.x + parent2.x) // 2  # Média das posições x dos pais
             child_y = (self.y + parent2.y) // 2  # Média das posições y dos pais
@@ -228,9 +234,19 @@ class Prey:
             """
             # Remove the mother if the number of preys exceeds the maximum allowed
             if len(preys) > PREY_MAX:
-                grid.remove_entity(self)
-                preys.remove(self)
-                del self
+                # Encontrar a menor geração entre as presas
+                min_generation = min(prey.generation for prey in preys)
+                
+                # Filtrar as presas que têm a geração mínima
+                min_generation_preys = [prey for prey in preys if prey.generation == min_generation]
+                
+                # Escolher uma presa aleatória entre as de menor geração
+                prey_to_remove = random.choice(min_generation_preys)
+                
+                # Remover a presa escolhida
+                grid.remove_entity(prey_to_remove)
+                preys.remove(prey_to_remove)
+                del prey_to_remove
 
     def get_sensors(self, preys, predators):
         """Retorna os sensores (raios) da presa, otimizados com NumPy."""
@@ -416,6 +432,9 @@ class Predator:
                         save_file = "models/predator_best_neural_network.pkl"
                         #best_rank = float("-inf")
 
+                        # Initialize parent2 as None
+                        parent3 = None
+
                         try:
                             # Check if the file exists and read the saved neural network
                             with open(save_file, "rb") as f:
@@ -429,24 +448,33 @@ class Predator:
 
                                 # If the saved data contains a neural network, create parent2
                                 if saved_neural_network_data:
-                                    parent2_neural_network = NeuralNetwork(is_prey=True)
-                                    parent2_neural_network.load_from_data(saved_neural_network_data)
+                                    parent3_neural_network = NeuralNetwork(is_prey=True)
+                                    parent3_neural_network.load_from_data(saved_neural_network_data)
 
                                     # Create parent2 using the saved neural network
-                                    parent2 = Predator(random.randint(0, grid.width), random.randint(0, grid.height), self.energy, parent2_neural_network)
+                                    parent3 = Predator(random.randint(0, grid.width), random.randint(0, grid.height), self.energy, parent3_neural_network)
 
                         except (FileNotFoundError, EOFError, pickle.UnpicklingError, AttributeError):
                             pass  # If the file is missing or invalid, parent2 will remain None
 
+                        parent2_filter = [predator for predator in predators if predator.generation == self.generation]
+                        parent2 = random.choice(parent2_filter)
+
                         # If parent2 was not successfully created, fallback to random choice
                         if parent2 is None:
+                            print("Parent2 is None")
                             parent2 = random.choice(preys)
+
+                        if parent3 is None:
+                            #print("Parent2 is None")
+                            parent3 = random.choice(preys)
 
                         #parent1 = random.choice(predators)
                         #parent2 = random.choice(predators)
 
                         # Cruzamento genético para criar a rede neural do filho
                         child_network = self.neural_network.crossover(parent2.neural_network)
+                        child_network = child_network.crossover(parent3.neural_network)
 
                         # Escolher posição inicial para o novo predador (pode ser aleatória ou baseada nos pais)
                         child_x = (self.x + parent2.x) // 2  # Média das posições x dos pais

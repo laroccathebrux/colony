@@ -37,28 +37,37 @@ class NeuralNetwork:
 
     def mutate(self, mutation_rate):
         """Mutate the weights and biases with a given mutation rate."""
+        debug = []
         for i in range(len(self.weights_input_hidden)):
             for j in range(len(self.weights_input_hidden[i])):
-                num = random.random()
+                num = round(random.random(), 3)
                 if num < mutation_rate:
                     #print(f"Mutating Input weight {i} {j} - {num} < {mutation_rate}")
                     self.weights_input_hidden[i][j] += random.uniform(-0.1, 0.1)
+                    debug.append(f"Mutating Input weight {i} {j} - {num} < {mutation_rate}")
 
         for i in range(len(self.bias_hidden)):
-            if random.random() < mutation_rate:
+            num = round(random.random(), 3)
+            if num < mutation_rate:
                 #print(f"Mutating hidden bias {i}")
                 self.bias_hidden[i] += random.uniform(-0.1, 0.1)
+                debug.append(f"Mutating hidden bias {i} - {num} < {mutation_rate}")
 
         for i in range(len(self.weights_hidden_output)):
             for j in range(len(self.weights_hidden_output[i])):
-                if random.random() < mutation_rate:
+                num = round(random.random(), 3)
+                if num < mutation_rate:
                     #print(f"Mutating hidden weight {i} {j}")
                     self.weights_hidden_output[i][j] += random.uniform(-0.1, 0.1)
+                    debug.append(f"Mutating hidden weight {i} {j} - {num} < {mutation_rate}")
 
         for i in range(len(self.bias_output)):
-            if random.random() < mutation_rate:
+            num = round(random.random(), 3)
+            if num < mutation_rate:
                 #print(f"Mutating output bias {i}")
                 self.bias_output[i] += random.uniform(-0.1, 0.1)
+                debug.append(f"Mutating output bias {i} - {num} < {mutation_rate}")
+        #print(debug)
 
     def forward(self, input_data):
         """Perform a forward pass through the network."""
