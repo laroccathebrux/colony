@@ -6,17 +6,18 @@ import pickle
 class NeuralNetwork:
     """Class representing a simple neural network."""
     def __init__(self):
+
         self.inputs = [0.0] * INPUTS  # 14 inputs
         self.hidden_layer = [0.0] * NEURONS  # 4 hidden neurons
         self.outputs = [0.0] * OUTPUTS  # 2 outputs
         self.total_reward = 0.0  # Acumula as recompensas
 
-        # Randomly initialize weights and biases
-        self.weights_input_hidden = [[random.uniform(-1, 1) for _ in range(INPUTS)] for _ in range(NEURONS)]
-        self.bias_hidden = [random.uniform(-1, 1) for _ in range(NEURONS)]
-
-        self.weights_hidden_output = [[random.uniform(-1, 1) for _ in range(NEURONS)] for _ in range(OUTPUTS)]
-        self.bias_output = [random.uniform(-1, 1) for _ in range(OUTPUTS)]
+        # Limitar pesos e biases a um intervalo menor
+        self.weights_input_hidden = [[random.uniform(-0.5, 0.5) for _ in range(INPUTS)] for _ in range(NEURONS)]
+        self.bias_hidden = [random.uniform(-0.5, 0.5) for _ in range(NEURONS)]
+        self.weights_hidden_output = [[random.uniform(-0.5, 0.5) for _ in range(NEURONS)] for _ in range(OUTPUTS)]
+        self.bias_output = [random.uniform(-0.5, 0.5) for _ in range(OUTPUTS)]
+        
         self.generation = 1
 
     # Adicionando funções de ativação
@@ -69,13 +70,13 @@ class NeuralNetwork:
         for i in range(len(self.hidden_layer)):
             activation = sum(w * inp for w, inp in zip(self.weights_input_hidden[i], self.inputs))
             activation += self.bias_hidden[i]
-            self.hidden_layer[i] = self.tanh(activation)
+            self.hidden_layer[i] = self.relu(activation)
 
         # Calculate output layer activations
         for i in range(len(self.outputs)):
             activation = sum(w * hidden for w, hidden in zip(self.weights_hidden_output[i], self.hidden_layer))
             activation += self.bias_output[i]
-            self.outputs[i] = self.tanh(activation)
+            self.outputs[i] = self.relu(activation)
 
         return self.outputs
 
@@ -148,14 +149,37 @@ class NeuralNetwork:
             return NeuralNetwork()
         
     def calculate_rank(self):
-        """Calculate the rank of the neural network based on weights and biases."""
-        rank = 0.0
-        # Sum the absolute values of all weights and biases
-        rank += sum(abs(w) for row in self.weights_input_hidden for w in row)
-        rank += sum(abs(b) for b in self.bias_hidden)
-        rank += sum(abs(w) for row in self.weights_hidden_output for w in row)
-        rank += sum(abs(b) for b in self.bias_output)
+        """
+        Calculate the rank of the neural network based on weights, biases, and total reward.
+        Incorporates L2 regularization, reward-based evaluation, and generation normalization.
+        """
+        # Regularização L2: Soma dos quadrados dos pesos e bias
+        l2_weights = sum(w**2 for row in self.weights_input_hidden for w in row)
+        l2_weights += sum(w**2 for row in self.weights_hidden_output for w in row)
+        l2_bias = sum(b**2 for b in self.bias_hidden)
+        l2_bias += sum(b**2 for b in self.bias_output)
+
+        # Recompensa acumulada com peso aumentado
+        reward_factor = self.total_reward * 10
+
+        # Penalidade L1 para valores extremos
+        l1_penalty = sum(abs(w) for row in self.weights_input_hidden for w in row)
+        l1_penalty += sum(abs(w) for row in self.weights_hidden_output for w in row)
+        l1_penalty += sum(abs(b) for b in self.bias_hidden)
+        l1_penalty += sum(abs(b) for b in self.bias_output)
+
+        # Penalidade para redes sem histórico de desempenho
+        no_reward_penalty = -10 if self.total_reward == 0 else 0
+
+        # Combinar métricas em uma única pontuação de rank
+        rank = reward_factor - 0.01 * l1_penalty + 0.001 * l2_weights - 0.1 * l2_bias + no_reward_penalty
+
+        # Normalizar pelo número de gerações (opcional)
+        rank = rank / self.generation
+
         return rank
+
+
 
     def crossover(self, other):
         """Realiza o cruzamento genético com outra rede neural."""

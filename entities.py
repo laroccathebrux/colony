@@ -63,6 +63,7 @@ class Prey:
         self.direction = random.uniform(0, 360)  # In degrees
         self.reward = 0.0 
         self.generation = 1
+        self.last_direction = None 
 
     def draw(self, surface):
         pygame.draw.circle(surface, self.color, (self.x, self.y), self.size)
@@ -141,7 +142,7 @@ class Prey:
         if self.split_progress < 100:
             self.split_progress += random.uniform(0, PREY_SPLIT_RATE)
 
-        if self.split_progress >= 100 and self.energy >= 30:
+        if self.split_progress >= 100: # and self.energy >= 30:
             self.split_progress = 0
             # Cruzamento genético entre dois indivíduos
             parent1 = random.choice(preys)
@@ -168,17 +169,33 @@ class Prey:
                 with open(save_file, "rb") as f:
                     saved_data = pickle.load(f)
                     best_rank = (
-                        sum(abs(w) for row in saved_data["weights_input_hidden"] for w in row) +
-                        sum(abs(b) for b in saved_data["bias_hidden"]) +
-                        sum(abs(w) for row in saved_data["weights_hidden_output"] for w in row) +
-                        sum(abs(b) for b in saved_data["bias_output"])
+                        # Regularização L2 para pesos e bias
+                        0.001 * (
+                            sum(w**2 for row in saved_data["weights_input_hidden"] for w in row) +
+                            sum(w**2 for row in saved_data["weights_hidden_output"] for w in row) +
+                            sum(b**2 for b in saved_data["bias_hidden"]) +
+                            sum(b**2 for b in saved_data["bias_output"])
+                        ) -
+                        # Penalidade L1 para valores extremos
+                        0.01 * (
+                            sum(abs(w) for row in saved_data["weights_input_hidden"] for w in row) +
+                            sum(abs(w) for row in saved_data["weights_hidden_output"] for w in row) +
+                            sum(abs(b) for b in saved_data["bias_hidden"]) +
+                            sum(abs(b) for b in saved_data["bias_output"])
+                        ) +
+                        # Recompensa acumulada
+                        saved_data.get("total_reward", 0) * 10 -
+                        # Penalidade adicional para bias (se aplicável)
+                        0.1 * sum(b**2 for b in saved_data["bias_output"])
                     )
+
+
             except (FileNotFoundError, EOFError, pickle.UnpicklingError):
                 pass  # Use default best_rank = -inf if file is missing or invalid
 
             # Compare ranks
             new_rank = new_prey.neural_network.calculate_rank()
-            #print(f"New rank: {new_rank} - Best rank: {best_rank}")
+            print(f"New rank: {new_rank} - Best rank: {best_rank}")
             if new_rank > best_rank:
                 new_prey.neural_network.save(save_file, new_prey.generation)
 
@@ -302,6 +319,7 @@ class Predator:
         self.direction = random.uniform(0, 360)  # In degrees
         self.reward = 0.0
         self.generation = 1
+        self.last_direction = None 
 
     def draw(self, surface):
         pygame.draw.circle(surface, self.color, (self.x, self.y), self.size)
@@ -393,10 +411,24 @@ class Predator:
                             with open(save_file, "rb") as f:
                                 saved_data = pickle.load(f)
                                 best_rank = (
-                                    sum(abs(w) for row in saved_data["weights_input_hidden"] for w in row) +
-                                    sum(abs(b) for b in saved_data["bias_hidden"]) +
-                                    sum(abs(w) for row in saved_data["weights_hidden_output"] for w in row) +
-                                    sum(abs(b) for b in saved_data["bias_output"])
+                                    # Regularização L2 para pesos e bias
+                                    0.001 * (
+                                        sum(w**2 for row in saved_data["weights_input_hidden"] for w in row) +
+                                        sum(w**2 for row in saved_data["weights_hidden_output"] for w in row) +
+                                        sum(b**2 for b in saved_data["bias_hidden"]) +
+                                        sum(b**2 for b in saved_data["bias_output"])
+                                    ) -
+                                    # Penalidade L1 para valores extremos
+                                    0.01 * (
+                                        sum(abs(w) for row in saved_data["weights_input_hidden"] for w in row) +
+                                        sum(abs(w) for row in saved_data["weights_hidden_output"] for w in row) +
+                                        sum(abs(b) for b in saved_data["bias_hidden"]) +
+                                        sum(abs(b) for b in saved_data["bias_output"])
+                                    ) +
+                                    # Recompensa acumulada
+                                    saved_data.get("total_reward", 0) * 10 -
+                                    # Penalidade adicional para bias (se aplicável)
+                                    0.1 * sum(b**2 for b in saved_data["bias_output"])
                                 )
                         except (FileNotFoundError, EOFError, pickle.UnpicklingError):
                             pass  # Use default best_rank = -inf if file is missing or invalid
