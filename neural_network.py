@@ -79,7 +79,14 @@ class NeuralNetwork:
 
         return self.outputs
 
-    def calculate_reward(self, captured_prey=False, previous_distance=0.0, current_distance=0, energy_used=0, split_happened=False):
+    def calculate_reward(self, 
+                     captured_prey=False, 
+                     previous_distance=0.0, 
+                     current_distance=0.0, 
+                     energy_used=0, 
+                     split_happened=False, 
+                     speed=0.0, 
+                     group_bonus=0):
         """Calculate the reward for the current step."""
         reward = 0.0
 
@@ -95,10 +102,17 @@ class NeuralNetwork:
         # Recompensa por reprodução
         reward += 20 if split_happened else 0
 
+        # Recompensa baseada na velocidade (quanto maior, melhor até um limite)
+        reward += min(speed, 5) * 0.5  # Máximo de 5 pontos de bônus para velocidade
+
+        # Estratégia de Grupo: Recompensa por cooperação (ou penalidade por competição)
+        reward += group_bonus
+
         # Acumular a recompensa total
         self.total_reward += reward
 
         return reward
+
     
     def save(self, file_path, generation):
         """Save the neural network to a file."""

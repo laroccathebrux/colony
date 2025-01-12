@@ -178,6 +178,7 @@ class Prey:
 
             # Compare ranks
             new_rank = new_prey.neural_network.calculate_rank()
+            #print(f"New rank: {new_rank} - Best rank: {best_rank}")
             if new_rank > best_rank:
                 new_prey.neural_network.save(save_file, new_prey.generation)
 
