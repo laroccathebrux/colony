@@ -139,18 +139,18 @@ def draw_sidebar(surface, selected_entity, preys, predators):
         split_label = font.render("SPLIT", True, (0, 0, 0))
         surface.blit(split_label, (SCREEN_WIDTH - SIDEBAR_WIDTH + 10, padding))
 
-        # Calcular a porcentagem de SPLIT com base no tipo de entidade
+        # Calculate SPLIT percentage based on entity type
         if hasattr(selected_entity, 'split_progress'):
             if isinstance(selected_entity, Predator):
-                # Predador: Normalizar de 0 a 3
-                split_percentage = selected_entity.split_progress / 3  # Normaliza para 0 a 1
+                # Predator: Normalize from 0 to 3
+                split_percentage = selected_entity.split_progress / 3  # Normalizes to 0 to 1
             elif isinstance(selected_entity, Prey):
-                # Prey: Normalizar de 0 a 100%
-                split_percentage = selected_entity.split_progress / 100  # Normaliza para 0 a 1
+                # Prey: Normalize from 0 to 100%
+                split_percentage = selected_entity.split_progress / 100  # Normalizes to 0 to 1
         else:
             split_percentage = 0
 
-        # Desenhar a barra de progresso
+        # Draw the progress bar
         padding = padding + PADDING_SPACE
         pygame.draw.rect(
             surface, 
@@ -196,18 +196,18 @@ def draw_sidebar(surface, selected_entity, preys, predators):
 def draw_bottom_bar(surface):
     """Draw the bottom bar containing the matplotlib graph."""
     pygame.draw.rect(surface, BOTTOMBAR_COLOR, (0, SCREEN_HEIGHT - BOTTOMBAR_HEIGHT, SCREEN_WIDTH, BOTTOMBAR_HEIGHT))
-    # Dimensões da barra inferior
+    # Bottom bar dimensions
     graph_width = BOTTOMBAR_WIDTH
     graph_height = BOTTOMBAR_HEIGHT
 
-    # Configurar o tamanho do gráfico diretamente em pixels
+    # Set the chart size directly in pixels
     #print(graph_width/fig.dpi, graph_height/fig.dpi)
     fig.set_size_inches(graph_width / fig.dpi - 6.7, graph_height / fig.dpi)
 
-    # Ajustar margens do gráfico para caber perfeitamente na área da barra inferior
+    # Adjust chart margins to fit perfectly in bottom bar area
     fig.subplots_adjust(left=0.1, right=0.9, top=0.85, bottom=0.2)
 
-    # Atualizar os dados no gráfico
+    # Update data in the chart
     ax.clear()
     ax.plot(range(len(time_data)), list(prey_data), label="Prey", color='green', linewidth=1)
     ax.plot(range(len(time_data)), list(predator_data), label="Predators", color='red', linewidth=1)
@@ -219,15 +219,15 @@ def draw_bottom_bar(surface):
     ax.set_ylim(0, max(max(prey_data, default=0), max(predator_data, default=0)) + 10)
     ax.legend(fontsize=5)
 
-    # Renderizar o gráfico como uma imagem para o Pygame
+    # Render the graph as an image for Pygame
     canvas.draw()
     raw_data = canvas.tostring_rgb()
     size = canvas.get_width_height()
 
-    # Criar uma surface do Pygame com o gráfico
+    # Create a Pygame surface with the graph
     graph_surface = pygame.image.fromstring(raw_data, size, "RGB")
 
-    # Desenhar o gráfico na área definida pela barra inferior
+    # Draw the chart in the area defined by the bottom bar
     surface.blit(graph_surface, (0, SCREEN_HEIGHT - BOTTOMBAR_HEIGHT))
 
 
@@ -378,19 +378,19 @@ def main():
                     distance = round(sensor["distance"], 2)
                     target_type = sensor["target_type"]
 
-                    # Define a cor do sensor baseado no tipo do alvo
+                    # Sets the sensor color based on the target type
                     if target_type == "prey":
-                        color = (0, 255, 0)  # Verde para presas
+                        color = (0, 255, 0)  # Green for prey
                     elif target_type == "predator":
-                        color = (255, 0, 0)  # Vermelho para predadores
+                        color = (255, 0, 0)  # Red for predators
                     else:
-                        color = (200, 200, 200)  # Cinza para nenhum alvo
+                        color = (200, 200, 200)  # Gray for no target
 
                     sensor_info = font.render(f"{i + 1}: {distance} ({target_type})", True, (0, 0, 0))
                     screen.blit(sensor_info, (SCREEN_WIDTH - SIDEBAR_WIDTH + 10, 440 + i * 20))
                     #screen.blit(sensor_info, (SCREEN_HEIGHT - BOTTOMBAR_HEIGHT + 20, 300 + i * 20))
 
-                    # Desenha o sensor com a cor e comprimento corretos
+                    # Draw the sensor with the correct color and length
                     pygame.draw.line(screen, color, sensor["start"], sensor["end"], 2)
                 continue
 
@@ -410,19 +410,19 @@ def main():
                     distance = round(sensor["distance"], 2)
                     target_type = sensor["target_type"]
 
-                    # Define a cor do sensor baseado no tipo do alvo
+                    # Sets the sensor color based on the target type
                     if target_type == "prey":
-                        color = (0, 255, 0)  # Verde para presas
+                        color = (0, 255, 0)  # Green for prey
                     elif target_type == "predator":
-                        color = (255, 0, 0)  # Vermelho para predadores
+                        color = (255, 0, 0)  # Red for predators
                     else:
-                        color = (200, 200, 200)  # Cinza para nenhum alvo
+                        color = (200, 200, 200)  # Gray for no target
 
                     sensor_info = font.render(f"{i + 1}: {distance} ({target_type})", True, (0, 0, 0))
                     screen.blit(sensor_info, (SCREEN_WIDTH - SIDEBAR_WIDTH + 10, 480 + i * 20))
                     #screen.blit(sensor_info, (SCREEN_HEIGHT - BOTTOMBAR_HEIGHT + 20, 300 + i * 20))
 
-                    # Desenha o sensor com a cor e comprimento corretos
+                    # Draw the sensor with the correct color and length
                     pygame.draw.line(screen, color, sensor["start"], sensor["end"], 2)              
                 continue
 
@@ -432,14 +432,14 @@ def main():
         # Draw bottom bar
         draw_bottom_bar(screen)
 
-        # Desenhar rede neural da entidade selecionada
+        # Draw neural network of selected entity
         if selected_entity and selected_entity.energy <= 0:
             selected_entity = None
         if selected_entity:
             draw_neural_network(
                 screen,
                 selected_entity.neural_network,
-                SCREEN_WIDTH - 210,  # X offset (ao lado do gráfico)
+                SCREEN_WIDTH - 210,  # X offset (next to the graph)
                 SCREEN_HEIGHT - BOTTOMBAR_HEIGHT + 20,  # Y offset
             )
 

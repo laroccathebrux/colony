@@ -63,7 +63,7 @@ class Prey:
         self.active = True  # Whether the prey is moving
         self.split_progress = 0  # Progress towards splitting
         self.sensors = [0, 0, 0, 0]  # Sensor distances for [front, back, left, right]
-        self.neural_network = neural_network if neural_network else NeuralNetwork()  # Nova ou existente
+        self.neural_network = neural_network if neural_network else NeuralNetwork()  # New or existing
         self.is_stationary = 0  # Whether the prey is stationary
         self.direction = random.uniform(0, 360)  # In degrees
         self.reward = 0.0 
@@ -76,7 +76,7 @@ class Prey:
 
     def calculate_and_update_reward(self, captured_prey, previous_distance, current_distance, energy_used, split_happened):
         """Calcula a recompensa e atualiza a rede neural."""
-        # Calcular a recompensa com base nos parâmetros do ambiente
+        # Calculate reward based on environment parameters
         step_reward = self.neural_network.calculate_reward(
             captured_prey=captured_prey,
             previous_distance=previous_distance,
@@ -85,7 +85,7 @@ class Prey:
             split_happened=split_happened
         )
 
-        # Atualizar a recompensa total do indivíduo
+        # Update the individual's total reward
         self.reward += step_reward
 
         return step_reward
@@ -161,7 +161,7 @@ class Prey:
                 with open(save_file, "rb") as f:
                     saved_data = pickle.load(f)
 
-                    # Cálculo do rank salvo
+                    # Saved rank calculation
                     best_rank["Prey"] = saved_data.get("rank", float("-inf"))
 
                     # Extract the neural network data
@@ -179,22 +179,22 @@ class Prey:
                 pass  # If the file is missing or invalid, parent2 will remain None
 
             parent2_filter = [prey for prey in preys if prey.generation == self.generation]
-            parent2 = random.choice(parent2_filter)
+            parent2 = random.choice(parent2_filter) if parent2_filter != None else None
 
             # If parent2 was not successfully created, fallback to random choice
             if parent2 is None:
                 parent2 = random.choice(preys)
             if parent3 is None:
                 parent3 = random.choice(preys)
-            # Cruzamento genético entre dois indivíduos
+            # Genetic crossing between two individuals
             #parent1 = random.choice(preys)
             #parent2 = random.choice(preys)
             child = self.neural_network.crossover(parent2.neural_network)
             child = child.crossover(parent3.neural_network)
-            # Escolher posição inicial para o novo predador (pode ser aleatória ou baseada nos pais)
-            child_x = (self.x + parent2.x) // 2  # Média das posições x dos pais
-            child_y = (self.y + parent2.y) // 2  # Média das posições y dos pais
-            # Criação de um novo predador com a rede neural do filho
+            # Choose starting position for new predator (can be random or based on parents)
+            child_x = (self.x + parent2.x) // 2  # Average of parents' x positions
+            child_y = (self.y + parent2.y) // 2  # Average of parents' y positions
+            # Creation of a new predator with the son's neural network
             new_prey = Prey(child_x, child_y, self.energy, child)
             new_prey.generation = self.generation + 1
             new_prey.neural_network = NeuralNetwork(is_prey=True)  # Create new neural network for offspring
@@ -204,17 +204,17 @@ class Prey:
             grid.add_entity(new_prey)
 
             # reward
-            # Calcular a velocidade com base no movimento
+            # Calculate speed based on motion
             speed = ((new_prey.x - previous_x)**2 + (new_prey.y - previous_y)**2) ** 0.5
-            # Calcular a recompensa usando os novos fatores
+            # Calculate the reward using the new factors
             reward = new_prey.neural_network.calculate_reward(
-                captured_prey=False,  # Presas não capturam
-                previous_distance=0.0,  # Distância não se aplica aqui (ou ajuste conforme necessário)
+                captured_prey=False,  # Prey does not capture
+                previous_distance=0.0,  # Distance does not apply here (or adjust as needed)
                 current_distance=0.0,
-                energy_used=new_prey.energy,  # Energia gasta no movimento
-                split_happened=True,  # Condição de reprodução
+                energy_used=new_prey.energy,  # Energy spent on movement
+                split_happened=True,  # Breeding condition
                 speed=speed,
-                group_bonus=0  # Adicione lógica de grupo se necessário
+                group_bonus=0  # Add group logic if needed
             )
             new_prey.neural_network.total_reward += reward
             new_prey.rank = new_prey.neural_network.calculate_rank()
@@ -234,86 +234,86 @@ class Prey:
             """
             # Remove the mother if the number of preys exceeds the maximum allowed
             if len(preys) > PREY_MAX:
-                # Encontrar a menor geração entre as presas
+                # Finding the smallest generation among the prey
                 min_generation = min(prey.generation for prey in preys)
                 
-                # Filtrar as presas que têm a geração mínima
+                # Filter prey that has the minimum generation
                 min_generation_preys = [prey for prey in preys if prey.generation == min_generation]
                 
-                # Escolher uma presa aleatória entre as de menor geração
+                # Choose a random prey from the lowest generation
                 prey_to_remove = random.choice(min_generation_preys)
                 
-                # Remover a presa escolhida
+                # Remove the chosen prey
                 grid.remove_entity(prey_to_remove)
                 preys.remove(prey_to_remove)
                 del prey_to_remove
 
     def get_sensors(self, preys, predators):
-        """Retorna os sensores (raios) da presa, otimizados com NumPy."""
+        """Returns the prey's sensors (radii), optimized with NumPy."""
         sensors = []
-        num_sensors = 4  # Número de raios
-        vision_distance = 0.8 * min(SCREEN_WIDTH, SCREEN_HEIGHT)  # Distância máxima do sensor
-        angle_step = 360 / num_sensors  # Ângulo entre sensores
+        num_sensors = 4  # Number of sensors
+        vision_distance = 0.8 * min(SCREEN_WIDTH, SCREEN_HEIGHT)  # Maximum sensor distance
+        angle_step = 360 / num_sensors  # Angle between sensors
         self_position = 0
         sensor_angle_degrees = 0
 
-        # Pré-calcular os ângulos dos sensores
+        # Pre-calculate sensor angles
         sensor_angles = [radians(i * angle_step + self.direction) for i in range(num_sensors)]
 
-        # Filtrar entidades próximas (reduz o número de iterações nos loops)
+        # Filter nearby entities (reduces the number of iterations in loops)
         filtered_preys = [prey for prey in preys if abs(prey.x - self.x) <= vision_distance and abs(prey.y - self.y) <= vision_distance and prey != self]
         filtered_predators = [predator for predator in predators if abs(predator.x - self.x) <= vision_distance and abs(predator.y - self.y) <= vision_distance]
 
-        # Processar cada sensor individualmente
+        # Process each sensor individually
         for angle in sensor_angles:
-            closest_distance = vision_distance  # Inicialmente o sensor tem alcance máximo
-            target_type = None  # Tipo de alvo detectado
+            closest_distance = vision_distance  # Initially the sensor has maximum range
+            target_type = None  # Target type detected
 
-            # Direção do sensor
+            # Sensor direction
             sensor_dx = cos(angle)
             sensor_dy = sin(angle)
 
-            # Verifica colisão com predadores (vetorizado)
+            # Checks for collision with predators (vectorized)
             if filtered_predators:
                 predator_positions = np.array([[predator.x, predator.y] for predator in filtered_predators])
                 self_position = np.array([self.x, self.y])
-                predator_vectors = predator_positions - self_position  # Vetores para cada predador
-                predator_distances = np.linalg.norm(predator_vectors, axis=1)  # Distâncias dos predadores
+                predator_vectors = predator_positions - self_position  # Vectors for each predator
+                predator_distances = np.linalg.norm(predator_vectors, axis=1)  # Distances from predators
 
-                # Filtrar predadores dentro do campo de visão
+                # Filter predators within the field of view
                 predator_angles = np.degrees(np.arctan2(predator_vectors[:, 1], predator_vectors[:, 0]))
                 sensor_angle_degrees = np.degrees(np.arctan2(sensor_dy, sensor_dx))
                 delta_angles = np.abs((predator_angles - sensor_angle_degrees + 180) % 360 - 180)
 
-                # Predadores visíveis pelo sensor
+                # Predators visible by the sensor
                 valid_predators = (predator_distances < vision_distance) & (delta_angles <= angle_step / 2)
                 if valid_predators.any():
                     closest_predator_index = np.argmin(predator_distances[valid_predators])
                     closest_distance = predator_distances[valid_predators][closest_predator_index]
                     target_type = "predator"
 
-            # Verifica colisão com outras presas (vetorizado)
+            # Checks for collision with other prey (vectorized)
             if filtered_preys:
                 prey_positions = np.array([[prey.x, prey.y] for prey in filtered_preys])
-                prey_vectors = prey_positions - self_position  # Vetores para cada presa
-                prey_distances = np.linalg.norm(prey_vectors, axis=1)  # Distâncias das presas
+                prey_vectors = prey_positions - self_position  # Vectors for each prey
+                prey_distances = np.linalg.norm(prey_vectors, axis=1)  # Prey distances
 
-                # Filtrar presas dentro do campo de visão
+                # Filter prey within field of view
                 prey_angles = np.degrees(np.arctan2(prey_vectors[:, 1], prey_vectors[:, 0]))
                 delta_angles = np.abs((prey_angles - sensor_angle_degrees + 180) % 360 - 180)
 
-                # Presas visíveis pelo sensor
+                # Prey visible by sensor
                 valid_preys = (prey_distances < vision_distance) & (delta_angles <= angle_step / 2)
                 if valid_preys.any():
                     closest_prey_index = np.argmin(prey_distances[valid_preys])
                     closest_distance = prey_distances[valid_preys][closest_prey_index]
                     target_type = "prey"
 
-            # Calcula o ponto final do sensor baseado na distância mais próxima
+            # Calculate the sensor endpoint based on the closest distance
             end_x = self.x + sensor_dx * closest_distance
             end_y = self.y + sensor_dy * closest_distance
 
-            # Adiciona o sensor ao resultado
+            # Add the sensor to the result
             sensor = {
                 "start": (self.x, self.y),
                 "end": (end_x, end_y),
@@ -358,7 +358,7 @@ class Predator:
         self.split_progress = 0  # Number of successful prey eaten for splitting
         self.digestion = 0  # Digestion timer
         self.sensors = [0, 0, 0, 0]  # Sensor distances for 4 angled directions
-        self.neural_network = neural_network if neural_network else NeuralNetwork()  # Nova ou existente
+        self.neural_network = neural_network if neural_network else NeuralNetwork()  # Nova or existing
         self.direction = random.uniform(0, 360)  # In degrees
         self.reward = 0.0
         self.generation = 1
@@ -385,7 +385,7 @@ class Predator:
         old_x, old_y = self.x, self.y
         #self.x += dx
         #self.y += dy
-        # Atualiza a posição
+        # Update position
         self.x += speed * cos(radians(self.direction))
         self.y += speed * sin(radians(self.direction))
 
@@ -440,7 +440,7 @@ class Predator:
                             with open(save_file, "rb") as f:
                                 saved_data = pickle.load(f)
 
-                                # Cálculo do rank salvo
+                                # Saved rank calculation
                                 best_rank["Predator"] = saved_data.get("rank", float("-inf"))
 
                                 # Extract the neural network data
@@ -458,7 +458,7 @@ class Predator:
                             pass  # If the file is missing or invalid, parent2 will remain None
 
                         parent2_filter = [predator for predator in predators if predator.generation == self.generation]
-                        parent2 = random.choice(parent2_filter)
+                        parent2 = random.choice(parent2_filter if parent2_filter != None else None)
 
                         # If parent2 was not successfully created, fallback to random choice
                         if parent2 is None:
@@ -472,14 +472,14 @@ class Predator:
                         #parent1 = random.choice(predators)
                         #parent2 = random.choice(predators)
 
-                        # Cruzamento genético para criar a rede neural do filho
+                        # Genetic crossover to create the offspring's neural network
                         child_network = self.neural_network.crossover(parent2.neural_network)
                         child_network = child_network.crossover(parent3.neural_network)
 
-                        # Escolher posição inicial para o novo predador (pode ser aleatória ou baseada nos pais)
-                        child_x = (self.x + parent2.x) // 2  # Média das posições x dos pais
-                        child_y = (self.y + parent2.y) // 2  # Média das posições y dos pais
-                        # Criar o novo predador com a rede neural resultante e posições iniciais
+                        # Choose starting position for new predator (can be random or based on parents)
+                        child_x = (self.x + parent2.x) // 2  # Average of parents' x positions
+                        child_y = (self.y + parent2.y) // 2  # Average of parents' y positions
+                        # Create the new predator with the resulting neural network and initial positions
                         new_predator = Predator(child_x, child_y, self.energy, child_network)
                         #new_predator = Predator(self.x + random.randint(-10, 10), self.y + random.randint(-10, 10))
                         new_predator.generation = self.generation + 1
@@ -493,21 +493,21 @@ class Predator:
                         new_predator.neural_network.mutate(MUTATION_RATE)
 
 
-                        # Calcular a velocidade com base no movimento
+                        # Calculate speed based on motion
                         speed = ((new_predator.x - previous_x)**2 + (new_predator.y - previous_y)**2) ** 0.5
 
-                        # Estratégia de grupo: Recompensa por proximidade a outros predadores
+                        # Group strategy: Reward for proximity to other predators
                         group_bonus = 0
                         for other in predators:
                             if other != new_predator:
                                 distance = ((new_predator.x - other.x)**2 + (new_predator.y - other.y)**2) ** 0.5
-                                if distance < 20:  # Recompensa se estiver perto de outros predadores
+                                if distance < 20:  # Reward if near other predators
                                     group_bonus += 1
 
-                        # Calcular a recompensa
+                        # Calculate the reward
                         reward = new_predator.neural_network.calculate_reward(
                             captured_prey=new_predator is not None,
-                            previous_distance=0.0,  # Ajuste conforme necessário
+                            previous_distance=0.0,  # Adjust as needed
                             current_distance=0.0,
                             energy_used=new_predator.energy,
                             split_happened=True,
@@ -535,25 +535,25 @@ class Predator:
         closest_distance = vision_distance
         target_type = None
 
-        # Verifica colisão com presas
+        # Checks for collision with prey
         for prey in preys:
             dx = prey.x - self_position[0]
             dy = prey.y - self_position[1]
-            distance = (dx**2 + dy**2) ** 0.5  # Calcula a distância
+            distance = (dx**2 + dy**2) ** 0.5  # Calculate the distance
             if distance < closest_distance:
                 closest_distance = distance
                 target_type = "prey"
 
-        # Verifica colisão com predadores
+        # Checks for collision with predators
         for predator in predators:
             dx = predator.x - self_position[0]
             dy = predator.y - self_position[1]
-            distance = (dx**2 + dy**2) ** 0.5  # Calcula a distância
+            distance = (dx**2 + dy**2) ** 0.5  # Calculate the distance
             if distance < closest_distance:
                 closest_distance = distance
                 target_type = "predator"
 
-        # Calcula o ponto final do sensor
+        # Calculate the sensor endpoint
         end_x = self_position[0] + cos(angle) * closest_distance
         end_y = self_position[1] + sin(angle) * closest_distance
 
@@ -568,68 +568,68 @@ class Predator:
     def get_sensors(self, preys, predators):
         """Retorna os sensores (raios) do predador, otimizados com NumPy."""
         sensors = []
-        num_sensors = 4  # Número de raios no campo de visão
-        vision_distance = 0.8 * min(SCREEN_WIDTH, SCREEN_HEIGHT)  # Distância máxima do sensor
-        angle_step = 45 / num_sensors  # Ângulo entre sensores dentro do campo de visão (45 graus)
+        num_sensors = 4  # Number of rays in the field of view
+        vision_distance = 0.8 * min(SCREEN_WIDTH, SCREEN_HEIGHT)  # Maximum sensor distance
+        angle_step = 45 / num_sensors  # Angle between sensors within field of view (45 degrees)
 
-        # Pré-calcular os ângulos dos sensores
+        # Pre-calculate sensor angles
         sensor_angles = [radians(self.direction - 22.5 + i * angle_step) for i in range(num_sensors)]
 
-        # Posição inicial ajustada para os sensores
+        # Adjusted home position for sensors
         start_x = self.x + cos(radians(self.direction)) * self.size
         start_y = self.y + sin(radians(self.direction)) * self.size
-        self_position = np.array([start_x, start_y])  # Vetor da posição inicial do sensor
+        self_position = np.array([start_x, start_y])  # Vector of the initial position of the sensor
 
-        # Processar cada sensor individualmente
+        # Process each sensor individually
         for angle in sensor_angles:
-            closest_distance = vision_distance  # Inicialmente o sensor tem alcance máximo
-            target_type = None  # Tipo de alvo detectado
+            closest_distance = vision_distance  # Initially the sensor has maximum range
+            target_type = None  # Target type detected
 
-            # Direção do sensor
+            # Sensor direction
             sensor_dx = cos(angle)
             sensor_dy = sin(angle)
             sensor_angle_degrees = np.degrees(np.arctan2(sensor_dy, sensor_dx))
 
-            # Verifica colisão com presas (vetorizado)
+            # Checks for collision with prey (vectorized)
             if preys:
                 prey_positions = np.array([[prey.x, prey.y] for prey in preys])
-                prey_vectors = prey_positions - self_position  # Vetores para cada presa
-                prey_distances = np.linalg.norm(prey_vectors, axis=1)  # Distâncias das presas
+                prey_vectors = prey_positions - self_position  # Vectors for each prey
+                prey_distances = np.linalg.norm(prey_vectors, axis=1)  # Prey distances
 
-                # Filtrar presas dentro do campo de visão
+                # Filter prey within field of view
                 prey_angles = np.degrees(np.arctan2(prey_vectors[:, 1], prey_vectors[:, 0]))
                 delta_angles = np.abs((prey_angles - sensor_angle_degrees + 180) % 360 - 180)
 
-                # Presas visíveis pelo sensor
+                # Prey visible by sensor
                 valid_preys = (prey_distances < vision_distance) & (delta_angles <= angle_step / 2)
                 if valid_preys.any():
                     closest_prey_index = np.argmin(prey_distances[valid_preys])
                     closest_distance = prey_distances[valid_preys][closest_prey_index]
                     target_type = "prey"
 
-            # Verifica colisão com predadores (vetorizado)
+            # Checks for collision with predators (vectorized)
             if predators:
                 predator_positions = np.array([[predator.x, predator.y] for predator in predators if predator != self])
-                if len(predator_positions) > 0:  # Verifica se há predadores no alcance
-                    predator_vectors = predator_positions - self_position  # Vetores para cada predador
-                    predator_distances = np.linalg.norm(predator_vectors, axis=1)  # Distâncias dos predadores
+                if len(predator_positions) > 0:  # Check for predators in range
+                    predator_vectors = predator_positions - self_position  # Vectors for each predator
+                    predator_distances = np.linalg.norm(predator_vectors, axis=1)  # Distances from predators
 
-                    # Filtrar predadores dentro do campo de visão
+                    # Filter predators within the field of view
                     predator_angles = np.degrees(np.arctan2(predator_vectors[:, 1], predator_vectors[:, 0]))
                     delta_angles = np.abs((predator_angles - sensor_angle_degrees + 180) % 360 - 180)
 
-                    # Predadores visíveis pelo sensor
+                    # Predators visible by the sensor
                     valid_predators = (predator_distances < vision_distance) & (delta_angles <= angle_step / 2)
                     if valid_predators.any():
                         closest_predator_index = np.argmin(predator_distances[valid_predators])
                         closest_distance = predator_distances[valid_predators][closest_predator_index]
                         target_type = "predator"
 
-            # Calcula o ponto final do sensor baseado na distância mais próxima
+            # Calculate the sensor endpoint based on the closest distance
             end_x = start_x + sensor_dx * closest_distance
             end_y = start_y + sensor_dy * closest_distance
 
-            # Adiciona o sensor ao resultado
+            # Add the sensor to the result
             sensor = {
                 "start": (start_x, start_y),
                 "end": (end_x, end_y),
