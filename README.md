@@ -2,6 +2,8 @@
 
 This project is a simulation of an ecosystem with predators and prey. The entities use artificial neural networks to define their behaviors, including movement, sensor-based decisions, and interactions such as hunting and evasion. The project is developed in Python, using the `pygame` library for visualization.
 
+![Screen](img/screen.jpg "Colony")
+
 ## Features
 
 ### Entities
